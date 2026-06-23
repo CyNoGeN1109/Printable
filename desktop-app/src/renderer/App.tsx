@@ -1,0 +1,309 @@
+import { useState, useEffect } from 'react'
+import Dashboard from './pages/Dashboard'
+import History from './pages/History'
+import Stats from './pages/Stats'
+import PrintQueue from './pages/PrintQueue'
+import ConfirmModal from './components/ConfirmModal'
+import type { Order, QueueStatus, AppConfig } from './types'
+
+type Page = 'dashboard' | 'queue' | 'history' | 'stats' | 'settings'
+
+export default function App() {
+  const [currentPage, setCurrentPage] = useState<Page>('dashboard')
+  const [pendingConfirmOrder, setPendingConfirmOrder] = useState<Order | null>(null)
+  
+  const [config, setConfig] = useState<AppConfig | null>(null)
+  const [printers, setPrinters] = useState<any[]>([])
+  const [selectedPrinter, setSelectedPrinter] = useState<string>('')
+  const [queueStatus, setQueueStatus] = useState<QueueStatus>({
+    pending: 0,
+    isProcessing: false,
+    isPaused: false,
+    queue: [],
+    progress: { stage: 'idle', percent: 0, stageStartedAt: 0, totalPages: 0, totalCopies: 0 }
+  })
+  const [printerError, setPrinterError] = useState<{ orderId: string; message: string } | null>(null)
+
+  useEffect(() => {
+    // Load initial data
+    window.api.getConfig().then(cfg => {
+      setConfig(cfg)
+    })
+    window.api.getPrinters().then(list => {
+      setPrinters(list)
+    })
+    window.api.getSelectedPrinter().then(name => {
+      if (name) setSelectedPrinter(name)
+    })
+    window.api.getQueueStatus().then(status => {
+      setQueueStatus(status)
+    })
+
+    window.api.onNewOrder((order: Order) => {
+      console.log('[Renderer] New order received:', order.orderId)
+      if (order.paymentMode === 'online' && order.status === 'paid') {
+        window.api.queueOnlineOrder(order.orderId)
+      }
+    })
+
+    window.api.onQueueUpdate((status) => {
+      setQueueStatus(status)
+    })
+
+    window.api.onPrinterError((data) => {
+      setPrinterError(data)
+    })
+
+    return () => {
+      window.api.removeNewOrderListener()
+      window.api.removeQueueUpdateListener()
+      window.api.removePrinterErrorListener()
+    }
+  }, [])
+
+  const handleToggleSystem = async () => {
+    if (!config) return
+    const newEnabled = !config.systemEnabled
+    await window.api.toggleSystem(newEnabled)
+    setConfig({ ...config, systemEnabled: newEnabled })
+  }
+
+  const handlePrinterChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const name = e.target.value
+    setSelectedPrinter(name)
+    setPrinterError(null)
+    await window.api.setPrinter(name)
+  }
+
+  const handleRetry = async () => {
+    setPrinterError(null)
+    await window.api.retryQueue()
+  }
+
+  return (
+    <div className="flex h-screen text-zinc-900 font-sans select-none overflow-hidden relative">
+      {/* Ambient gradient-mesh backdrop */}
+      <div className="app-bg" />
+
+      {/* Sidebar */}
+      <aside className="w-72 sidebar flex flex-col relative z-50">
+        <div className="p-8">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-[#3f3f46] rounded-xl flex items-center justify-center shadow-lg shadow-black/10 overflow-hidden">
+              <img src="./logo.jpeg" alt="P" className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <h1 className="font-black text-xl leading-tight tracking-tight text-zinc-900">Printable</h1>
+              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">Admin Portal</p>
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex-1 px-4 flex flex-col gap-6">
+          <div>
+            <p className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Main</p>
+            <div className="space-y-1">
+              <NavItem active={currentPage === 'dashboard'} icon="🏠" label="Overview" onClick={() => setCurrentPage('dashboard')} />
+              <NavItem active={currentPage === 'queue'} icon="📄" label="Print queue" count={queueStatus.pending + (queueStatus.isProcessing ? 1 : 0)} onClick={() => setCurrentPage('queue')} />
+              <NavItem active={currentPage === 'history'} icon="🕒" label="History" onClick={() => setCurrentPage('history')} />
+            </div>
+          </div>
+
+          <div>
+            <p className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Reports</p>
+            <div className="space-y-1">
+              <NavItem active={currentPage === 'stats'} icon="📊" label="Analytics" onClick={() => setCurrentPage('stats')} />
+              <NavItem active={currentPage === 'settings'} icon="⚙️" label="Settings" onClick={() => setCurrentPage('settings')} />
+            </div>
+          </div>
+        </nav>
+
+        <div className="p-6 mt-auto border-t border-black/5 bg-black/[0.02]">
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${config?.systemEnabled ? 'bg-green-500' : 'bg-red-500'}`} />
+              <span className="text-xs font-bold text-zinc-500">System {config?.systemEnabled ? 'online' : 'offline'}</span>
+            </div>
+            <div 
+              onClick={handleToggleSystem}
+              className={`w-12 h-6 rounded-full transition-all duration-300 cursor-pointer relative ${config?.systemEnabled ? 'bg-zinc-700' : 'bg-zinc-300'}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${config?.systemEnabled ? 'left-7' : 'left-1'}`} />
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col relative z-10 overflow-hidden">
+        {/* Header */}
+        <header className="h-24 flex items-center justify-between px-10 z-40">
+          <h2 className="text-2xl font-black text-zinc-900 tracking-tight">{currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}</h2>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 bg-white border border-black/5 rounded-2xl px-5 py-2.5 shadow-sm">
+              <div className="flex flex-col">
+                <span className="text-[9px] text-zinc-400 font-black uppercase tracking-widest leading-none mb-1">Printer</span>
+                <select 
+                  value={selectedPrinter} 
+                  onChange={handlePrinterChange}
+                  className="bg-transparent text-xs font-black text-zinc-900 border-none focus:ring-0 cursor-pointer p-0 appearance-none pr-4"
+                >
+                  <option value="">Default</option>
+                  {printers.map((p: any) => {
+                    const pName = typeof p === 'string' ? p : p.name || p.deviceId || 'Unknown'
+                    return <option key={pName} value={pName}>{pName}</option>
+                  })}
+                </select>
+              </div>
+              <span className="text-zinc-400 text-xs">▼</span>
+            </div>
+            
+            <div className="w-12 h-12 rounded-2xl bg-white border border-black/5 flex items-center justify-center cursor-pointer hover:bg-zinc-50 transition-all shadow-sm">
+              <span className="relative">
+                🔔
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+              </span>
+            </div>
+          </div>
+        </header>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-10 pb-10 no-scrollbar animate-slide-up">
+          {currentPage === 'dashboard' && <Dashboard queueStatus={queueStatus} />}
+          {currentPage === 'queue' && <PrintQueue queueStatus={queueStatus} />}
+          {currentPage === 'history' && <History />}
+          {currentPage === 'stats' && <Stats />}
+          {currentPage === 'settings' && <Settings config={config} printers={printers} />}
+        </div>
+
+        {/* Error Notification */}
+        {printerError && (
+          <div className="absolute bottom-8 right-10 bg-zinc-900 text-white p-5 rounded-2xl shadow-2xl flex items-center gap-5 border border-white/10 animate-slide-up">
+            <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-500">⚠️</div>
+            <div className="flex-1">
+              <h4 className="text-xs font-black uppercase tracking-widest mb-0.5">Critical Error</h4>
+              <p className="text-[11px] font-medium opacity-70">{printerError.message}</p>
+            </div>
+            <button onClick={handleRetry} className="bg-white text-black text-[10px] font-black uppercase px-4 py-2 rounded-lg hover:bg-zinc-200 transition-all">Resolve</button>
+          </div>
+        )}
+      </main>
+
+      {/* Confirmation Modal */}
+      {pendingConfirmOrder && (
+        <ConfirmModal
+          order={pendingConfirmOrder}
+          onConfirm={async () => {
+            await window.api.confirmCashPayment(pendingConfirmOrder.orderId)
+            setPendingConfirmOrder(null)
+          }}
+          onDismiss={() => setPendingConfirmOrder(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+function NavItem({ active, icon, label, count, onClick }: any) {
+  return (
+    <div 
+      onClick={onClick}
+      className={`sidebar-item ${active ? 'active' : ''}`}
+    >
+      <span className="text-lg opacity-80">{icon}</span>
+      <span className="flex-1">{label}</span>
+      {count > 0 && (
+        <span className={`${active ? 'bg-white/20' : 'bg-zinc-200'} text-[10px] font-black px-2 py-0.5 rounded-md`}>
+          {count}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function Settings({ config, printers }: any) {
+  const [url, setUrl] = useState(config?.backendUrl || '')
+  const [bw, setBw] = useState(config?.bwPrinter || '')
+  const [colour, setColour] = useState(config?.colourPrinter || '')
+  const [key, setKey] = useState(config?.apiKey || '')
+
+  const printerNames: string[] = (printers || []).map((p: any) =>
+    typeof p === 'string' ? p : p.name || p.deviceId || 'Unknown'
+  )
+
+  const selectCls = "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-5 py-3 text-sm font-black text-zinc-700 focus:border-zinc-500 outline-none cursor-pointer"
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      {/* Shop identity */}
+      <div className="bg-white border border-black/5 p-10 rounded-3xl shadow-sm">
+        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-2">This Shop</h3>
+        <p className="text-xs text-zinc-400 mb-8 font-medium">
+          Paste the setup key from when this shop was created. It links this app to your shop so you only ever see your own orders.
+        </p>
+        <label className="text-[10px] text-zinc-500 uppercase font-black mb-3 block tracking-widest">Shop Setup Key</label>
+        <div className="flex gap-4">
+          <input
+            type="password"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-5 py-3 text-sm text-zinc-900 focus:border-zinc-500 outline-none font-mono"
+            placeholder="sk_…"
+          />
+          <button
+            onClick={() => window.api.updateConfig({ apiKey: key }).then(() => alert('Shop linked. Only this shop’s orders will show now.'))}
+            className="btn-primary"
+          >Link Shop</button>
+        </div>
+      </div>
+
+      {/* Printer routing */}
+      <div className="bg-white border border-black/5 p-10 rounded-3xl shadow-sm">
+        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-2">Printer Routing</h3>
+        <p className="text-xs text-zinc-400 mb-8 font-medium">
+          Colour jobs auto-route to your colour printer, B&amp;W jobs to your B&amp;W printer. (A manual per-order printer still overrides this.)
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="text-[10px] text-zinc-500 uppercase font-black mb-3 block tracking-widest">🖤 B &amp; W Printer</label>
+            <select value={bw} onChange={(e) => { setBw(e.target.value); window.api.updateConfig({ bwPrinter: e.target.value }) }} className={selectCls}>
+              <option value="">System Default</option>
+              {printerNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-zinc-500 uppercase font-black mb-3 block tracking-widest">🎨 Colour Printer</label>
+            <select value={colour} onChange={(e) => { setColour(e.target.value); window.api.updateConfig({ colourPrinter: e.target.value }) }} className={selectCls}>
+              <option value="">System Default</option>
+              {printerNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Backend endpoint */}
+      <div className="bg-white border border-black/5 p-10 rounded-3xl shadow-sm">
+        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-8">System Configuration</h3>
+        <div className="space-y-8">
+          <div>
+            <label className="text-[10px] text-zinc-500 uppercase font-black mb-3 block tracking-widest">Backend server endpoint</label>
+            <div className="flex gap-4">
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-5 py-3 text-sm text-zinc-900 focus:border-zinc-500 transition-all outline-none"
+                placeholder="http://127.0.0.1:4000"
+              />
+              <button
+                onClick={() => window.api.updateConfig({ backendUrl: url }).then(() => alert('Configuration updated.'))}
+                className="btn-primary"
+              >Save Changes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

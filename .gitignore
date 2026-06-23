@@ -1,0 +1,35 @@
+# ─── Dependencies ───────────────────────────────────────────────────────────
+node_modules/
+
+# ─── Secrets / environment (NEVER commit) ──────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+# (.env.example is kept on purpose — it documents required vars)
+
+# ─── Build output ──────────────────────────────────────────────────────────────
+.next/
+dist/
+dist-electron/
+dist_working/
+build/
+out/
+*.tsbuildinfo
+
+# ─── Desktop bundled binaries ──────────────────────────────────────────────────
+mupdf/
+
+# ─── Separate cloned repo (company website) — has its own git/remote ───────────
+printable-web/
+
+# ─── Local agent memory (not platform code) ────────────────────────────────────
+memory/
+
+# ─── Tooling / editor / OS ─────────────────────────────────────────────────────
+.claude/
+.vscode/
+.idea/
+*.log
+.DS_Store

@@ -1,0 +1,220 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Printable Admin — Premium design system
+   Frosted glass · bento layout · emerald brand accent · smooth motion
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --bg-page:       #EEF1F4;
+  --sidebar-bg:    rgba(255, 255, 255, 0.62);
+  --card-bg:       rgba(255, 255, 255, 0.72);
+  --card-solid:    #FFFFFF;
+  --text-main:     #0E1116;
+  --text-muted:    #6B7280;
+  --text-faint:    #9CA3AF;
+  --border-subtle: rgba(15, 23, 42, 0.06);
+  --border-glass:  rgba(255, 255, 255, 0.7);
+  --accent:        #0C831F;   /* Printable brand green */
+  --accent-soft:   #16A34A;
+  --accent-ring:   rgba(12, 131, 31, 0.18);
+  --ink-grad:      linear-gradient(135deg, #1F2937, #0B0F14);
+  --shadow-soft:   0 1px 2px rgba(16,24,40,.04), 0 8px 24px -8px rgba(16,24,40,.12);
+  --shadow-lift:   0 2px 4px rgba(16,24,40,.05), 0 18px 40px -12px rgba(16,24,40,.22);
+}
+
+body {
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg-page);
+}
+
+/* Ambient gradient-mesh backdrop — soft emerald + indigo glow blobs */
+.app-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(60% 50% at 12% 8%,  rgba(12, 131, 31, 0.10), transparent 60%),
+    radial-gradient(55% 45% at 92% 4%,  rgba(99, 102, 241, 0.10), transparent 60%),
+    radial-gradient(70% 60% at 85% 96%, rgba(12, 131, 31, 0.07), transparent 60%),
+    linear-gradient(180deg, #F4F6F8 0%, #EAEEF2 60%, #E3E8ED 100%);
+}
+
+/* ── Glass surfaces ───────────────────────────────────────────────────── */
+.glass {
+  background: var(--card-bg);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-soft);
+}
+
+.glass-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-soft);
+}
+
+.sidebar {
+  background: var(--sidebar-bg);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border-right: 1px solid var(--border-subtle);
+}
+
+/* ── Sidebar nav ──────────────────────────────────────────────────────── */
+.sidebar-item {
+  @apply flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer text-sm font-semibold;
+  color: var(--text-muted);
+  transition: all .22s cubic-bezier(.22,.61,.36,1);
+  position: relative;
+}
+.sidebar-item:hover {
+  color: var(--text-main);
+  background: rgba(15, 23, 42, 0.04);
+  transform: translateX(2px);
+}
+.sidebar-item.active {
+  background: var(--ink-grad);
+  color: #fff;
+  box-shadow: var(--shadow-lift);
+}
+.sidebar-item.active::before {
+  content: '';
+  position: absolute;
+  left: -4px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 18px; border-radius: 9px;
+  background: var(--accent-soft);
+}
+
+/* ── Stat / bento cards ───────────────────────────────────────────────── */
+.stat-card {
+  @apply rounded-3xl p-5 flex flex-col justify-between h-36 relative overflow-hidden;
+  background: var(--card-bg);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-soft);
+  transition: transform .3s cubic-bezier(.22,.61,.36,1), box-shadow .3s ease;
+}
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lift);
+}
+.stat-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 80% at 100% 0%, var(--tint, transparent), transparent 60%);
+  opacity: .9;
+  pointer-events: none;
+}
+.tint-emerald { --tint: rgba(12, 131, 31, 0.14); }
+.tint-indigo  { --tint: rgba(99, 102, 241, 0.14); }
+.tint-amber   { --tint: rgba(245, 158, 11, 0.15); }
+.tint-rose    { --tint: rgba(244, 63, 94, 0.13); }
+
+.icon-chip {
+  @apply w-11 h-11 rounded-2xl flex items-center justify-center text-lg;
+  background: rgba(255,255,255,0.65);
+  border: 1px solid var(--border-glass);
+  box-shadow: 0 2px 8px rgba(16,24,40,.06);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+.btn-primary {
+  background: var(--ink-grad);
+  @apply text-white px-5 py-2.5 rounded-xl text-sm font-bold;
+  box-shadow: var(--shadow-soft);
+  transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+}
+.btn-primary:hover { filter: brightness(1.08); box-shadow: var(--shadow-lift); }
+.btn-primary:active { transform: scale(.96); }
+
+.btn-accent {
+  background: linear-gradient(135deg, var(--accent-soft), var(--accent));
+  @apply text-white px-5 py-2.5 rounded-xl text-sm font-bold;
+  box-shadow: 0 8px 20px -6px var(--accent-ring);
+  transition: transform .15s ease, filter .2s ease;
+}
+.btn-accent:hover { filter: brightness(1.06); }
+.btn-accent:active { transform: scale(.96); }
+
+.btn-secondary {
+  @apply bg-white/80 border border-zinc-200 text-zinc-700 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:bg-white active:scale-95;
+}
+
+.status-badge {
+  @apply px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider;
+}
+
+/* Legacy stat gradients kept for safety (now tinted glass overrides visuals) */
+.grad-grey-1, .grad-grey-2, .grad-grey-3, .grad-grey-4 { background: var(--card-bg); }
+
+/* ── Live progress bar ────────────────────────────────────────────────── */
+.progress-track {
+  background: rgba(15, 23, 42, 0.06);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-soft), var(--accent));
+  transition: width .6s cubic-bezier(.22,.61,.36,1);
+  position: relative;
+}
+.progress-fill::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+  animation: shimmer 1.6s infinite;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.12); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(15,23,42,0.2); }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ── Motion ───────────────────────────────────────────────────────────── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up { animation: slideUp .5s cubic-bezier(.22,.61,.36,1) forwards; }
+
+/* Staggered entrance for grids of cards */
+.stagger > * { opacity: 0; animation: slideUp .55s cubic-bezier(.22,.61,.36,1) forwards; }
+.stagger > *:nth-child(1) { animation-delay: .04s; }
+.stagger > *:nth-child(2) { animation-delay: .10s; }
+.stagger > *:nth-child(3) { animation-delay: .16s; }
+.stagger > *:nth-child(4) { animation-delay: .22s; }
+.stagger > *:nth-child(5) { animation-delay: .28s; }
+.stagger > *:nth-child(6) { animation-delay: .34s; }
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes floatGlow {
+  0%,100% { transform: translateY(0); opacity: .85; }
+  50%     { transform: translateY(-3px); opacity: 1; }
+}
+.float-glow { animation: floatGlow 3.5s ease-in-out infinite; }
+
+@keyframes pulseDot {
+  0%   { box-shadow: 0 0 0 0 var(--accent-ring); }
+  70%  { box-shadow: 0 0 0 8px rgba(12,131,31,0); }
+  100% { box-shadow: 0 0 0 0 rgba(12,131,31,0); }
+}
+.pulse-dot { animation: pulseDot 2s infinite; }
