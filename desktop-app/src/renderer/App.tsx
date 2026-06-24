@@ -7,6 +7,7 @@ import Printers from './pages/Printers'
 import Inventory from './pages/Inventory'
 import Staff from './pages/Staff'
 import Tokens from './pages/Tokens'
+import Onboarding from './pages/Onboarding'
 import ConfirmModal from './components/ConfirmModal'
 import { playChime } from './lib/alerts'
 import type { Order, QueueStatus, AppConfig, PrinterHealth } from './types'
@@ -28,6 +29,7 @@ export default function App() {
   const [selectedPrinter, setSelectedPrinter] = useState<string>('')
   const [health, setHealth] = useState<PrinterHealth[]>([])
   const [online, setOnline] = useState(true)
+  const [skipOnboard, setSkipOnboard] = useState(false)
   const [queueStatus, setQueueStatus] = useState<QueueStatus>({
     pending: 0,
     isProcessing: false,
@@ -119,6 +121,16 @@ export default function App() {
   const handleRetry = async () => {
     setPrinterError(null)
     await window.api.retryQueue()
+  }
+
+  // First-run: link the shop (or skip for legacy/test use)
+  if (config && !config.apiKey && !skipOnboard) {
+    return (
+      <Onboarding
+        onDone={(name, key) => applyConfig({ shopName: name, apiKey: key })}
+        onSkip={() => setSkipOnboard(true)}
+      />
+    )
   }
 
   return (
