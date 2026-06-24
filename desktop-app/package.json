@@ -16,6 +16,7 @@
     "axios": "^1.6.0",
     "dotenv": "^17.4.2",
     "electron-updater": "^6.8.3",
+    "net-snmp": "^3.26.3",
     "pdf-to-printer": "^5.7.0"
   },
   "devDependencies": {
@@ -56,7 +57,9 @@
       {
         "from": "mupdf",
         "to": "mupdf",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {

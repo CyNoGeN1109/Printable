@@ -217,16 +217,6 @@ async function processNext() {
       }, ...currentHistory].slice(0, 50) // Keep last 50
       setConfig({ history: newHistory })
 
-      // Decrement paper inventory by sheets actually printed (duplex = 2 pages/sheet)
-      const inv = getConfig().inventory
-      if (inv && typeof inv.paperSheets === 'number') {
-        const sheets = files.reduce((s: number, f: any) => {
-          const perCopy = f.duplex ? Math.ceil((f.pages || 1) / 2) : (f.pages || 1)
-          return s + perCopy * (f.copies || 1)
-        }, 0)
-        setConfig({ inventory: { ...inv, paperSheets: Math.max(0, (inv.paperSheets || 0) - sheets) } })
-      }
-
       console.log(`[Queue] Order ${orderId} completed`)
       new Notification({ 
         title: 'Print Successful', 

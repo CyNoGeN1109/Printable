@@ -39,6 +39,9 @@ contextBridge.exposeInMainWorld('api', {
   pingBackend: () =>
     ipcRenderer.invoke('ping-backend'),
 
+  getPrinterSupplies: () =>
+    ipcRenderer.invoke('get-printer-supplies'),
+
   toggleSystem: (enabled: boolean) =>
     ipcRenderer.invoke('toggle-system', enabled),
 

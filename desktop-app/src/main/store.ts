@@ -20,7 +20,6 @@ export interface Config {
   soundAlerts?: boolean                  // chime on new order
   runOnStartup?: boolean                 // auto-launch with Windows
   finishing?: FinishingPrices            // add-on charges for binding etc.
-  inventory?: Inventory                  // paper / toner tracking
   staff?: StaffMember[]                  // counter operators
   activeStaffId?: string                 // who is on shift right now
   shiftStartedAt?: string                // ISO time the current shift began
@@ -40,12 +39,6 @@ export interface FinishingPrices {
   stapling?: number
 }
 
-export interface Inventory {
-  paperSheets?: number          // sheets remaining in stock
-  lowPaperThreshold?: number    // alert when below this
-  tonerPercent?: number         // 0–100 (manual estimate)
-}
-
 const defaultConfig: Config = {
   backendUrl: process.env.BACKEND_URL || process.env.API_URL || 'http://127.0.0.1:4000',
   systemEnabled: true,
@@ -53,7 +46,6 @@ const defaultConfig: Config = {
   soundAlerts: true,
   runOnStartup: false,
   finishing: { softBinding: 30, spiralBinding: 40, lamination: 20, stapling: 0 },
-  inventory: { paperSheets: 0, lowPaperThreshold: 500, tonerPercent: 100 },
   history: []
 }
 

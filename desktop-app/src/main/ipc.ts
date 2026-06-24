@@ -6,6 +6,7 @@ import { ipcMain, app } from 'electron'
 import { addToQueue, retryQueue, pauseQueue, resumeQueue, cancelCurrentJob, getQueueStatus } from './queue'
 import { updateOrderStatus, confirmCashPayment, getOrdersByStatus, getAllOrders } from './api'
 import { getAvailablePrinters, setSelectedPrinter, getSelectedPrinter, getPrinterHealth, printTestPage } from './printer'
+import { getPrinterSupplies } from './supplies'
 
 import { getConfig, setConfig } from './store'
 
@@ -89,6 +90,16 @@ export function setupIPC() {
       return { success: true }
     } catch (err: any) {
       return { success: false, error: err.message }
+    }
+  })
+
+  // ─── True printer-supply levels (WMI flags + SNMP exact levels) ────────────
+  ipcMain.handle('get-printer-supplies', async () => {
+    try {
+      return await getPrinterSupplies()
+    } catch (err: any) {
+      console.error('[IPC] get-printer-supplies failed:', err)
+      return []
     }
   })
 

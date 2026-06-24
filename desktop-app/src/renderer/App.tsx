@@ -4,7 +4,7 @@ import History from './pages/History'
 import Reports from './pages/Reports'
 import PrintQueue from './pages/PrintQueue'
 import Printers from './pages/Printers'
-import Inventory from './pages/Inventory'
+import Supplies from './pages/Supplies'
 import Staff from './pages/Staff'
 import Settings from './pages/Settings'
 import Onboarding from './pages/Onboarding'
@@ -12,13 +12,15 @@ import ConfirmModal from './components/ConfirmModal'
 import { playChime } from './lib/alerts'
 import type { Order, QueueStatus, AppConfig, PrinterHealth } from './types'
 
-type Page = 'dashboard' | 'queue' | 'printers' | 'history' | 'stats' | 'settings' | 'inventory' | 'staff'
+type Page = 'dashboard' | 'queue' | 'printers' | 'history' | 'stats' | 'settings' | 'supplies' | 'staff'
 
 const PAGE_TITLES: Record<Page, string> = {
   dashboard: 'Overview', queue: 'Print Queue', printers: 'Printers',
   history: 'History', stats: 'Reports', settings: 'Settings',
-  inventory: 'Inventory', staff: 'Staff & Shifts',
+  supplies: 'Supplies', staff: 'Staff & Shifts',
 }
+
+const SUPPLY_STATUSES = ['paper_out', 'paper_low', 'toner_out', 'toner_low']
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
@@ -98,11 +100,8 @@ export default function App() {
   }, [])
 
   const healthProblems = health.filter((p) => !p.ok && p.status !== 'unknown')
-  const inv = config?.inventory
-  const lowStock = !!inv && (
-    (typeof inv.paperSheets === 'number' && inv.paperSheets <= (inv.lowPaperThreshold ?? 0)) ||
-    (typeof inv.tonerPercent === 'number' && inv.tonerPercent <= 20)
-  )
+  // Supply alerts come straight from the printer (WMI status), not a software guess.
+  const lowStock = health.some((p) => SUPPLY_STATUSES.includes(p.status))
 
   const handleToggleSystem = async () => {
     if (!config) return
@@ -166,7 +165,7 @@ export default function App() {
           <div>
             <p className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Shop</p>
             <div className="space-y-1">
-              <NavItem active={currentPage === 'inventory'} icon="📦" label="Inventory" alert={lowStock} count={lowStock ? 1 : 0} onClick={() => setCurrentPage('inventory')} />
+              <NavItem active={currentPage === 'supplies'} icon="🩸" label="Supplies" alert={lowStock} count={lowStock ? 1 : 0} onClick={() => setCurrentPage('supplies')} />
               <NavItem active={currentPage === 'staff'} icon="👤" label="Staff & shifts" onClick={() => setCurrentPage('staff')} />
             </div>
           </div>
@@ -259,7 +258,7 @@ export default function App() {
           {currentPage === 'dashboard' && <Dashboard queueStatus={queueStatus} config={config} health={health} online={online} />}
           {currentPage === 'queue' && <PrintQueue queueStatus={queueStatus} />}
           {currentPage === 'printers' && <Printers config={config} onConfig={applyConfig} />}
-          {currentPage === 'inventory' && <Inventory config={config} onConfig={applyConfig} />}
+          {currentPage === 'supplies' && <Supplies />}
           {currentPage === 'staff' && <Staff config={config} onConfig={applyConfig} />}
           {currentPage === 'history' && <History />}
           {currentPage === 'stats' && <Reports />}

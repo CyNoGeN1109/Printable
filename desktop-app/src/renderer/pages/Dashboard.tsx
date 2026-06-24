@@ -25,9 +25,7 @@ export default function Dashboard({ queueStatus, config, health, online }: {
   // System status chips (command-center view)
   const healthProblems = (health || []).filter((p) => !p.ok && p.status !== 'unknown')
   const okPrinters = (health || []).filter((p) => p.ok).length
-  const inv = config?.inventory
-  const paper = inv?.paperSheets
-  const lowPaper = typeof paper === 'number' && paper <= (inv?.lowPaperThreshold ?? 0)
+  const supplyLow = (health || []).some((p) => ['paper_out', 'paper_low', 'toner_out', 'toner_low'].includes(p.status))
   const activeStaff = config?.staff?.find((s) => s.id === config?.activeStaffId)
 
   const pendingOrders = orders.filter((o) => o.status === 'pending_payment')
@@ -54,8 +52,8 @@ export default function Dashboard({ queueStatus, config, health, online }: {
           label={healthProblems.length === 0 ? `${okPrinters || 'No'} printer${okPrinters !== 1 ? 's' : ''} ready` : `${healthProblems.length} printer issue${healthProblems.length !== 1 ? 's' : ''}`}
           icon="🖨️"
         />
-        {typeof paper === 'number' && (
-          <StatusChip ok={!lowPaper} label={`${paper.toLocaleString()} sheets`} icon="📄" />
+        {(health || []).length > 0 && (
+          <StatusChip ok={!supplyLow} label={supplyLow ? 'Supplies low' : 'Supplies OK'} icon="🩸" />
         )}
         <StatusChip ok={!!activeStaff} neutral={!activeStaff} label={activeStaff ? `${activeStaff.name} on shift` : 'No shift'} icon="👤" />
       </div>

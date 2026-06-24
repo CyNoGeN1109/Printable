@@ -67,10 +67,25 @@ export interface FinishingPrices {
   stapling?: number
 }
 
-export interface Inventory {
-  paperSheets?: number
-  lowPaperThreshold?: number
-  tonerPercent?: number
+export type SupplyFlag = 'ok' | 'low' | 'out' | 'unknown'
+export type SupplyKind = 'toner' | 'ink' | 'drum' | 'waste' | 'paper' | 'other'
+
+export interface Supply {
+  name: string
+  kind: SupplyKind
+  percent: number | null
+  color?: string
+}
+
+export interface PrinterSupplies {
+  printer: string
+  host: string | null
+  source: 'snmp' | 'wmi'
+  reachable: boolean
+  paperFlag: SupplyFlag
+  tonerFlag: SupplyFlag
+  statusMessage: string
+  supplies: Supply[]
 }
 
 export interface StaffMember {
@@ -91,7 +106,6 @@ export interface AppConfig {
   soundAlerts?: boolean
   runOnStartup?: boolean
   finishing?: FinishingPrices
-  inventory?: Inventory
   staff?: StaffMember[]
   activeStaffId?: string
   shiftStartedAt?: string
@@ -114,6 +128,7 @@ declare global {
       getPrinterHealth:   () => Promise<PrinterHealth[]>
       printTestPage:      (printerName: string) => Promise<{ success: boolean; error?: string }>
       pingBackend:        () => Promise<{ online: boolean }>
+      getPrinterSupplies: () => Promise<PrinterSupplies[]>
       // New methods
       toggleSystem:       (enabled: boolean) => Promise<{ success: boolean }>
       getHistory:         () => Promise<Order[]>
