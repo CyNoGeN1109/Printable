@@ -1,7 +1,8 @@
 {
   "name": "printable",
   "version": "1.1.0",
-  "description": "Printable - Premium Desktop Print Dashboard",
+  "description": "Printable Vendor — complete operating software for print shops",
+  "author": "Printable",
   "main": "dist-electron/main/index.js",
   "scripts": {
     "postinstall": "node scripts/download-mupdf.js",
@@ -42,8 +43,8 @@
   },
   "build": {
     "appId": "com.printable.app.v2",
-    "productName": "PrintableDashboard",
-    "asar": false,
+    "productName": "Printable Vendor",
+    "asar": true,
     "files": [
       "dist",
       "dist-electron"
