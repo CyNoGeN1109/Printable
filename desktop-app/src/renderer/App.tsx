@@ -1,20 +1,33 @@
 import { useState, useEffect } from 'react'
 import Dashboard from './pages/Dashboard'
 import History from './pages/History'
-import Stats from './pages/Stats'
+import Reports from './pages/Reports'
 import PrintQueue from './pages/PrintQueue'
+import Printers from './pages/Printers'
+import Inventory from './pages/Inventory'
+import Staff from './pages/Staff'
+import Tokens from './pages/Tokens'
 import ConfirmModal from './components/ConfirmModal'
-import type { Order, QueueStatus, AppConfig } from './types'
+import { playChime } from './lib/alerts'
+import type { Order, QueueStatus, AppConfig, PrinterHealth } from './types'
 
-type Page = 'dashboard' | 'queue' | 'history' | 'stats' | 'settings'
+type Page = 'dashboard' | 'queue' | 'printers' | 'tokens' | 'history' | 'stats' | 'settings' | 'inventory' | 'staff'
+
+const PAGE_TITLES: Record<Page, string> = {
+  dashboard: 'Overview', queue: 'Print Queue', printers: 'Printers', tokens: 'Walk-in Tokens',
+  history: 'History', stats: 'Reports', settings: 'Settings',
+  inventory: 'Inventory', staff: 'Staff & Shifts',
+}
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
   const [pendingConfirmOrder, setPendingConfirmOrder] = useState<Order | null>(null)
-  
+
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [printers, setPrinters] = useState<any[]>([])
   const [selectedPrinter, setSelectedPrinter] = useState<string>('')
+  const [health, setHealth] = useState<PrinterHealth[]>([])
+  const [online, setOnline] = useState(true)
   const [queueStatus, setQueueStatus] = useState<QueueStatus>({
     pending: 0,
     isProcessing: false,
@@ -24,10 +37,18 @@ export default function App() {
   })
   const [printerError, setPrinterError] = useState<{ orderId: string; message: string } | null>(null)
 
+  // persist a config change to the main process and update local state
+  const applyConfig = (patch: Partial<AppConfig>) => {
+    setConfig((c) => (c ? { ...c, ...patch } : c))
+    window.api.updateConfig(patch)
+  }
+
   useEffect(() => {
     // Load initial data
+    let soundOn = true
     window.api.getConfig().then(cfg => {
       setConfig(cfg)
+      soundOn = cfg.soundAlerts !== false
     })
     window.api.getPrinters().then(list => {
       setPrinters(list)
@@ -41,6 +62,7 @@ export default function App() {
 
     window.api.onNewOrder((order: Order) => {
       console.log('[Renderer] New order received:', order.orderId)
+      if (soundOn) playChime()                       // 🔔 audible alert
       if (order.paymentMode === 'online' && order.status === 'paid') {
         window.api.queueOnlineOrder(order.orderId)
       }
@@ -54,12 +76,31 @@ export default function App() {
       setPrinterError(data)
     })
 
+    // Live printer-health poll for the global problem banner
+    const pollHealth = () => window.api.getPrinterHealth().then(setHealth).catch(() => {})
+    pollHealth()
+    const healthTimer = setInterval(pollHealth, 12000)
+
+    // Backend reachability poll (offline indicator)
+    const pollOnline = () => window.api.pingBackend().then((r) => setOnline(r.online)).catch(() => setOnline(false))
+    pollOnline()
+    const onlineTimer = setInterval(pollOnline, 10000)
+
     return () => {
       window.api.removeNewOrderListener()
       window.api.removeQueueUpdateListener()
       window.api.removePrinterErrorListener()
+      clearInterval(healthTimer)
+      clearInterval(onlineTimer)
     }
   }, [])
+
+  const healthProblems = health.filter((p) => !p.ok && p.status !== 'unknown')
+  const inv = config?.inventory
+  const lowStock = !!inv && (
+    (typeof inv.paperSheets === 'number' && inv.paperSheets <= (inv.lowPaperThreshold ?? 0)) ||
+    (typeof inv.tonerPercent === 'number' && inv.tonerPercent <= 20)
+  )
 
   const handleToggleSystem = async () => {
     if (!config) return
@@ -94,25 +135,35 @@ export default function App() {
             </div>
             <div>
               <h1 className="font-black text-xl leading-tight tracking-tight text-zinc-900">Printable</h1>
-              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">Admin Portal</p>
+              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">{config?.shopName || 'Vendor OS'}</p>
             </div>
           </div>
         </div>
 
         <nav className="flex-1 px-4 flex flex-col gap-6">
           <div>
-            <p className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Main</p>
+            <p className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Operations</p>
             <div className="space-y-1">
               <NavItem active={currentPage === 'dashboard'} icon="🏠" label="Overview" onClick={() => setCurrentPage('dashboard')} />
               <NavItem active={currentPage === 'queue'} icon="📄" label="Print queue" count={queueStatus.pending + (queueStatus.isProcessing ? 1 : 0)} onClick={() => setCurrentPage('queue')} />
+              <NavItem active={currentPage === 'printers'} icon="🖨️" label="Printers" count={healthProblems.length} alert={healthProblems.length > 0} onClick={() => setCurrentPage('printers')} />
+              <NavItem active={currentPage === 'tokens'} icon="🎫" label="Walk-in tokens" onClick={() => setCurrentPage('tokens')} />
               <NavItem active={currentPage === 'history'} icon="🕒" label="History" onClick={() => setCurrentPage('history')} />
             </div>
           </div>
 
           <div>
-            <p className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Reports</p>
+            <p className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Shop</p>
             <div className="space-y-1">
-              <NavItem active={currentPage === 'stats'} icon="📊" label="Analytics" onClick={() => setCurrentPage('stats')} />
+              <NavItem active={currentPage === 'inventory'} icon="📦" label="Inventory" alert={lowStock} count={lowStock ? 1 : 0} onClick={() => setCurrentPage('inventory')} />
+              <NavItem active={currentPage === 'staff'} icon="👤" label="Staff & shifts" onClick={() => setCurrentPage('staff')} />
+            </div>
+          </div>
+
+          <div>
+            <p className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Business</p>
+            <div className="space-y-1">
+              <NavItem active={currentPage === 'stats'} icon="📊" label="Reports" onClick={() => setCurrentPage('stats')} />
               <NavItem active={currentPage === 'settings'} icon="⚙️" label="Settings" onClick={() => setCurrentPage('settings')} />
             </div>
           </div>
@@ -138,7 +189,7 @@ export default function App() {
       <main className="flex-1 flex flex-col relative z-10 overflow-hidden">
         {/* Header */}
         <header className="h-24 flex items-center justify-between px-10 z-40">
-          <h2 className="text-2xl font-black text-zinc-900 tracking-tight">{currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}</h2>
+          <h2 className="text-2xl font-black text-zinc-900 tracking-tight">{PAGE_TITLES[currentPage]}</h2>
           
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 bg-white border border-black/5 rounded-2xl px-5 py-2.5 shadow-sm">
@@ -159,22 +210,50 @@ export default function App() {
               <span className="text-zinc-400 text-xs">▼</span>
             </div>
             
-            <div className="w-12 h-12 rounded-2xl bg-white border border-black/5 flex items-center justify-center cursor-pointer hover:bg-zinc-50 transition-all shadow-sm">
+            <div onClick={() => setCurrentPage('printers')} className="w-12 h-12 rounded-2xl bg-white border border-black/5 flex items-center justify-center cursor-pointer hover:bg-zinc-50 transition-all shadow-sm">
               <span className="relative">
                 🔔
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+                {healthProblems.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                )}
               </span>
             </div>
           </div>
         </header>
 
+        {/* Offline banner — backend unreachable */}
+        {!online && (
+          <div className="mx-10 mb-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-center gap-3">
+            <span className="text-lg">📡</span>
+            <span className="text-xs font-black text-amber-700">
+              Offline — can't reach the server. Jobs already in the queue keep printing; new orders will sync automatically when the connection returns.
+            </span>
+          </div>
+        )}
+
+        {/* Global printer-health banner (shows on every page) */}
+        {healthProblems.length > 0 && currentPage !== 'printers' && (
+          <div onClick={() => setCurrentPage('printers')}
+            className="mx-10 mb-4 bg-red-50 border border-red-200 rounded-2xl px-5 py-3 flex items-center gap-3 cursor-pointer hover:bg-red-100 transition-all">
+            <span className="text-lg">⚠️</span>
+            <span className="text-xs font-black text-red-700">
+              {healthProblems.map((p) => `${p.name}: ${p.message}`).join('  ·  ')}
+            </span>
+            <span className="ml-auto text-[10px] font-black uppercase text-red-500">View printers →</span>
+          </div>
+        )}
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-10 pb-10 no-scrollbar animate-slide-up">
-          {currentPage === 'dashboard' && <Dashboard queueStatus={queueStatus} />}
+          {currentPage === 'dashboard' && <Dashboard queueStatus={queueStatus} config={config} health={health} online={online} />}
           {currentPage === 'queue' && <PrintQueue queueStatus={queueStatus} />}
+          {currentPage === 'printers' && <Printers config={config} onConfig={applyConfig} />}
+          {currentPage === 'tokens' && <Tokens config={config} onConfig={applyConfig} />}
+          {currentPage === 'inventory' && <Inventory config={config} onConfig={applyConfig} />}
+          {currentPage === 'staff' && <Staff config={config} onConfig={applyConfig} />}
           {currentPage === 'history' && <History />}
-          {currentPage === 'stats' && <Stats />}
-          {currentPage === 'settings' && <Settings config={config} printers={printers} />}
+          {currentPage === 'stats' && <Reports />}
+          {currentPage === 'settings' && <Settings config={config} printers={printers} onConfig={applyConfig} />}
         </div>
 
         {/* Error Notification */}
@@ -205,16 +284,16 @@ export default function App() {
   )
 }
 
-function NavItem({ active, icon, label, count, onClick }: any) {
+function NavItem({ active, icon, label, count, alert, onClick }: any) {
   return (
-    <div 
+    <div
       onClick={onClick}
       className={`sidebar-item ${active ? 'active' : ''}`}
     >
       <span className="text-lg opacity-80">{icon}</span>
       <span className="flex-1">{label}</span>
       {count > 0 && (
-        <span className={`${active ? 'bg-white/20' : 'bg-zinc-200'} text-[10px] font-black px-2 py-0.5 rounded-md`}>
+        <span className={`${alert ? 'bg-red-500 text-white' : active ? 'bg-white/20' : 'bg-zinc-200'} text-[10px] font-black px-2 py-0.5 rounded-md`}>
           {count}
         </span>
       )}
@@ -222,11 +301,16 @@ function NavItem({ active, icon, label, count, onClick }: any) {
   )
 }
 
-function Settings({ config, printers }: any) {
+function Settings({ config, printers, onConfig }: any) {
   const [url, setUrl] = useState(config?.backendUrl || '')
   const [bw, setBw] = useState(config?.bwPrinter || '')
   const [colour, setColour] = useState(config?.colourPrinter || '')
   const [key, setKey] = useState(config?.apiKey || '')
+  const [shopName, setShopName] = useState(config?.shopName || '')
+  const soundOn = config?.soundAlerts !== false
+  const startupOn = config?.runOnStartup === true
+  const fin = config?.finishing || {}
+  const setFin = (k: string, v: string) => onConfig?.({ finishing: { ...fin, [k]: Number(v) || 0 } })
 
   const printerNames: string[] = (printers || []).map((p: any) =>
     typeof p === 'string' ? p : p.name || p.deviceId || 'Unknown'
@@ -242,6 +326,14 @@ function Settings({ config, printers }: any) {
         <p className="text-xs text-zinc-400 mb-8 font-medium">
           Paste the setup key from when this shop was created. It links this app to your shop so you only ever see your own orders.
         </p>
+        <label className="text-[10px] text-zinc-500 uppercase font-black mb-3 block tracking-widest">Shop Name</label>
+        <input
+          value={shopName}
+          onChange={(e) => setShopName(e.target.value)}
+          onBlur={() => onConfig?.({ shopName })}
+          className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-5 py-3 text-sm text-zinc-900 focus:border-zinc-500 outline-none mb-6"
+          placeholder="Sharma Xerox"
+        />
         <label className="text-[10px] text-zinc-500 uppercase font-black mb-3 block tracking-widest">Shop Setup Key</label>
         <div className="flex gap-4">
           <input
@@ -255,6 +347,56 @@ function Settings({ config, printers }: any) {
             onClick={() => window.api.updateConfig({ apiKey: key }).then(() => alert('Shop linked. Only this shop’s orders will show now.'))}
             className="btn-primary"
           >Link Shop</button>
+        </div>
+      </div>
+
+      {/* Preferences */}
+      <div className="bg-white border border-black/5 p-10 rounded-3xl shadow-sm">
+        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-8">Preferences</h3>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-black text-zinc-800">🔔 Sound alert on new order</p>
+            <p className="text-xs text-zinc-400 font-medium mt-0.5">Play a chime so you never miss an order at the counter.</p>
+          </div>
+          <div
+            onClick={() => onConfig?.({ soundAlerts: !soundOn })}
+            className={`w-12 h-6 rounded-full transition-all cursor-pointer relative ${soundOn ? 'bg-zinc-700' : 'bg-zinc-300'}`}
+          >
+            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${soundOn ? 'left-7' : 'left-1'}`} />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mt-6 pt-6 border-t border-zinc-100">
+          <div>
+            <p className="text-sm font-black text-zinc-800">🚀 Start automatically with Windows</p>
+            <p className="text-xs text-zinc-400 font-medium mt-0.5">Launch Printable when the shop PC boots — so it's always running.</p>
+          </div>
+          <div
+            onClick={() => onConfig?.({ runOnStartup: !startupOn })}
+            className={`w-12 h-6 rounded-full transition-all cursor-pointer relative ${startupOn ? 'bg-zinc-700' : 'bg-zinc-300'}`}
+          >
+            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${startupOn ? 'left-7' : 'left-1'}`} />
+          </div>
+        </div>
+      </div>
+
+      {/* Finishing charges */}
+      <div className="bg-white border border-black/5 p-10 rounded-3xl shadow-sm">
+        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-2">Finishing charges</h3>
+        <p className="text-xs text-zinc-400 mb-8 font-medium">Add-on prices for binding, lamination &amp; stapling (₹). Used when you add finishing to an order.</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { k: 'softBinding', label: '📕 Soft binding' },
+            { k: 'spiralBinding', label: '🌀 Spiral binding' },
+            { k: 'lamination', label: '✨ Lamination' },
+            { k: 'stapling', label: '📎 Stapling' },
+          ].map(({ k, label }) => (
+            <div key={k}>
+              <label className="text-[10px] text-zinc-500 uppercase font-black mb-2 block tracking-widest">{label}</label>
+              <input defaultValue={(fin as any)[k] ?? 0} onBlur={(e) => setFin(k, e.target.value)} inputMode="numeric"
+                className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-sm font-black text-zinc-700 outline-none focus:border-zinc-500" />
+            </div>
+          ))}
         </div>
       </div>
 

@@ -50,6 +50,96 @@ export async function getDefaultPrinter(): Promise<any> {
   }
 }
 
+// ─── Printer health ──────────────────────────────────────────────────────────
+// The single most-requested vendor feature: know *at a glance* if a printer is
+// out of paper / low on toner / jammed / offline, plus how many jobs are queued
+// on it — so the shop never silently fails a print at peak hours.
+
+export type PrinterHealthStatus =
+  | 'ready' | 'printing' | 'offline' | 'paper_out' | 'paper_low'
+  | 'toner_out' | 'toner_low' | 'jammed' | 'door_open' | 'bin_full' | 'error' | 'unknown'
+
+export interface PrinterHealth {
+  name: string
+  isDefault: boolean
+  status: PrinterHealthStatus
+  ok: boolean          // true only when ready/printing
+  message: string      // friendly, vendor-facing
+  queuedJobs: number
+}
+
+// Win32_Printer.DetectedErrorState → our status (problem states take priority)
+const ERROR_STATE: Record<number, { status: PrinterHealthStatus; message: string }> = {
+  3:  { status: 'paper_low',  message: 'Paper running low' },
+  4:  { status: 'paper_out',  message: 'Out of paper — refill tray' },
+  5:  { status: 'toner_low',  message: 'Toner / ink low' },
+  6:  { status: 'toner_out',  message: 'Out of toner / ink' },
+  7:  { status: 'door_open',  message: 'Printer door / cover open' },
+  8:  { status: 'jammed',     message: 'Paper jam — clear the printer' },
+  9:  { status: 'offline',    message: 'Printer offline' },
+  10: { status: 'error',      message: 'Printer needs service' },
+  11: { status: 'bin_full',   message: 'Output tray full — remove prints' },
+}
+
+export async function getPrinterHealth(): Promise<PrinterHealth[]> {
+  // Non-Windows (dev on macOS): enumerate names so the UI renders, status unknown.
+  if (process.platform !== 'win32') {
+    const list = await getAvailablePrinters()
+    return list.map((p: any) => {
+      const name = typeof p === 'string' ? p : p.name || p.deviceId || 'Unknown'
+      return { name, isDefault: false, status: 'unknown' as PrinterHealthStatus, ok: false, message: 'Status only available on Windows', queuedJobs: 0 }
+    })
+  }
+
+  const ps = `
+$printers = Get-CimInstance Win32_Printer | Select-Object Name,PrinterStatus,DetectedErrorState,WorkOffline,Default
+$jobs = @(Get-CimInstance Win32_PrintJob | ForEach-Object { ($_.Name -split ',')[0] })
+$out = foreach ($p in $printers) {
+  $count = @($jobs | Where-Object { $_ -eq $p.Name }).Count
+  [PSCustomObject]@{ Name=$p.Name; PrinterStatus=$p.PrinterStatus; DetectedErrorState=$p.DetectedErrorState; WorkOffline=[bool]$p.WorkOffline; Default=[bool]$p.Default; QueuedJobs=$count }
+}
+$out | ConvertTo-Json -Compress
+`.trim()
+
+  try {
+    const { stdout } = await execAsync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${ps.replace(/"/g, '\\"')}"`, { maxBuffer: 1024 * 1024 })
+    const raw = JSON.parse(stdout.trim() || '[]')
+    const rows = Array.isArray(raw) ? raw : [raw]
+    return rows.map((r: any): PrinterHealth => {
+      const errState = Number(r.DetectedErrorState)
+      const mapped = ERROR_STATE[errState]
+      let status: PrinterHealthStatus = 'ready'
+      let message = 'Ready'
+      if (r.WorkOffline) { status = 'offline'; message = 'Printer offline' }
+      if (mapped && errState !== 2) { status = mapped.status; message = mapped.message }
+      else if (Number(r.PrinterStatus) === 4) { status = 'printing'; message = 'Printing…' }
+      return {
+        name: r.Name,
+        isDefault: !!r.Default,
+        status,
+        ok: status === 'ready' || status === 'printing',
+        message,
+        queuedJobs: Number(r.QueuedJobs) || 0,
+      }
+    })
+  } catch (err) {
+    console.error('[Printer] Health query failed:', err)
+    // Fall back to a plain list so the UI still works
+    const list = await getAvailablePrinters()
+    return list.map((p: any) => {
+      const name = typeof p === 'string' ? p : p.name || 'Unknown'
+      return { name, isDefault: false, status: 'unknown' as PrinterHealthStatus, ok: false, message: 'Could not read status', queuedJobs: 0 }
+    })
+  }
+}
+
+// Send a Windows test page to a printer (vendor "is this printer working?" check)
+export async function printTestPage(printerName: string): Promise<void> {
+  if (process.platform !== 'win32') throw new Error('Test page only supported on Windows')
+  const ps = `$p = Get-CimInstance -Class Win32_Printer -Filter "Name='${printerName.replace(/'/g, "''")}'"; $p.PrintTestPage()`
+  await execAsync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${ps.replace(/"/g, '\\"')}"`)
+}
+
 export class PrinterError extends Error {
   constructor(message: string) {
     super(message)

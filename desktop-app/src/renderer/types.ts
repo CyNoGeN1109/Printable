@@ -47,6 +47,45 @@ export interface QueueStatus {
   progress: PrintProgress
 }
 
+export type PrinterHealthStatus =
+  | 'ready' | 'printing' | 'offline' | 'paper_out' | 'paper_low'
+  | 'toner_out' | 'toner_low' | 'jammed' | 'door_open' | 'bin_full' | 'error' | 'unknown'
+
+export interface PrinterHealth {
+  name: string
+  isDefault: boolean
+  status: PrinterHealthStatus
+  ok: boolean
+  message: string
+  queuedJobs: number
+}
+
+export interface FinishingPrices {
+  softBinding?: number
+  spiralBinding?: number
+  lamination?: number
+  stapling?: number
+}
+
+export interface Inventory {
+  paperSheets?: number
+  lowPaperThreshold?: number
+  tonerPercent?: number
+}
+
+export interface StaffMember {
+  id: string
+  name: string
+  pin: string
+}
+
+export interface Token {
+  num: number
+  name?: string
+  status: 'waiting' | 'serving' | 'done'
+  at: string
+}
+
 export interface AppConfig {
   backendUrl: string
   systemEnabled: boolean
@@ -54,7 +93,17 @@ export interface AppConfig {
   bwPrinter?: string
   colourPrinter?: string
   shopId?: string
+  shopName?: string
   apiKey?: string
+  soundAlerts?: boolean
+  runOnStartup?: boolean
+  finishing?: FinishingPrices
+  inventory?: Inventory
+  staff?: StaffMember[]
+  activeStaffId?: string
+  shiftStartedAt?: string
+  lastToken?: number
+  tokens?: Token[]
   history: Order[]
 }
 
@@ -71,6 +120,9 @@ declare global {
       getQueueStatus:     () => Promise<QueueStatus>
       setPrinter:         (printerName: string) => Promise<{ success: boolean }>
       getSelectedPrinter: () => Promise<string | null>
+      getPrinterHealth:   () => Promise<PrinterHealth[]>
+      printTestPage:      (printerName: string) => Promise<{ success: boolean; error?: string }>
+      pingBackend:        () => Promise<{ online: boolean }>
       // New methods
       toggleSystem:       (enabled: boolean) => Promise<{ success: boolean }>
       getHistory:         () => Promise<Order[]>

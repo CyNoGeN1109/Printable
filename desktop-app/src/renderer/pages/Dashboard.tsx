@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import OrderCard from '../components/OrderCard'
 import { useOrders } from '../lib/useOrders'
-import type { QueueStatus } from '../types'
+import type { QueueStatus, AppConfig, PrinterHealth } from '../types'
 
 const STAGE_LABEL: Record<string, string> = {
   idle: 'Idle',
@@ -12,13 +12,24 @@ const STAGE_LABEL: Record<string, string> = {
   paused: 'Paused',
 }
 
-export default function Dashboard({ queueStatus }: { queueStatus?: QueueStatus }) {
+export default function Dashboard({ queueStatus, config, health, online }: {
+  queueStatus?: QueueStatus; config?: AppConfig | null; health?: PrinterHealth[]; online?: boolean
+}) {
   const { orders, isLoading } = useOrders()
   const [historyCount, setHistoryCount] = useState(0)
 
   useEffect(() => {
     window.api.getHistory().then(h => setHistoryCount(h.length))
   }, [])
+
+  // System status chips (command-center view)
+  const healthProblems = (health || []).filter((p) => !p.ok && p.status !== 'unknown')
+  const okPrinters = (health || []).filter((p) => p.ok).length
+  const inv = config?.inventory
+  const paper = inv?.paperSheets
+  const lowPaper = typeof paper === 'number' && paper <= (inv?.lowPaperThreshold ?? 0)
+  const activeStaff = config?.staff?.find((s) => s.id === config?.activeStaffId)
+  const waitingTokens = (config?.tokens || []).filter((t) => t.status === 'waiting').length
 
   const pendingOrders = orders.filter((o) => o.status === 'pending_payment')
   const printingOrders = orders.filter((o) => o.status === 'printing')
@@ -36,6 +47,21 @@ export default function Dashboard({ queueStatus }: { queueStatus?: QueueStatus }
 
   return (
     <div className="animate-slide-up relative z-10">
+      {/* System status strip — the whole shop at a glance */}
+      <div className="flex flex-wrap gap-2.5 mb-7">
+        <StatusChip ok={online !== false} label={online === false ? 'Server offline' : 'Server online'} icon={online === false ? '📡' : '🟢'} />
+        <StatusChip
+          ok={healthProblems.length === 0}
+          label={healthProblems.length === 0 ? `${okPrinters || 'No'} printer${okPrinters !== 1 ? 's' : ''} ready` : `${healthProblems.length} printer issue${healthProblems.length !== 1 ? 's' : ''}`}
+          icon="🖨️"
+        />
+        {typeof paper === 'number' && (
+          <StatusChip ok={!lowPaper} label={`${paper.toLocaleString()} sheets`} icon="📄" />
+        )}
+        <StatusChip ok={!!activeStaff} neutral={!activeStaff} label={activeStaff ? `${activeStaff.name} on shift` : 'No shift'} icon="👤" />
+        {waitingTokens > 0 && <StatusChip ok neutral label={`${waitingTokens} waiting`} icon="🎫" />}
+      </div>
+
       {/* Bento stat grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-9 stagger">
         <StatCard title="Active Prints"   value={printingOrders.length} icon="🖨️" tint="tint-emerald" live={printingOrders.length > 0} />
@@ -152,6 +178,20 @@ function StatCard({ title, value, icon, tint, prefix = '', sub, live }: any) {
         {sub && <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">{sub}</p>}
         {live && <p className="text-[10px] font-bold text-[#0C831F] uppercase tracking-widest mt-2 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#0C831F] pulse-dot" /> running now</p>}
       </div>
+    </div>
+  )
+}
+
+function StatusChip({ ok, neutral, label, icon }: { ok: boolean; neutral?: boolean; label: string; icon: string }) {
+  const tone = neutral
+    ? 'bg-white/70 border-black/[0.05] text-zinc-500'
+    : ok
+      ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+      : 'bg-red-50 border-red-200 text-red-700'
+  return (
+    <div className={`flex items-center gap-2 border rounded-xl px-3.5 py-2 text-[11px] font-black ${tone}`}>
+      <span className="text-sm leading-none">{icon}</span>
+      <span>{label}</span>
     </div>
   )
 }

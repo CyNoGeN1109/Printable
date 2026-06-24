@@ -12,6 +12,34 @@ import crypto from "crypto";
 const GRAPH_API_VERSION = "v25.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * fetch() to Meta with retries. Connections to graph.facebook.com can fail
+ * transiently (connect timeouts, HTTP/2 GOAWAY frames, dropped sockets) —
+ * those throw a TypeError "fetch failed". We retry with a fresh connection and
+ * a short backoff, and also retry on 5xx. Non-5xx responses are returned as-is
+ * (e.g. 400 "not in allowed list" should NOT be retried).
+ */
+async function metaFetch(url: string, init: RequestInit = {}, attempts = 3): Promise<Response> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url, { ...init, signal: AbortSignal.timeout(15000) });
+      if (res.status >= 500 && i < attempts - 1) {
+        await sleep(400 * (i + 1));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastErr = err;
+      console.error(`[WhatsApp] fetch attempt ${i + 1}/${attempts} failed:`, (err as Error)?.message);
+      if (i < attempts - 1) await sleep(400 * (i + 1));
+    }
+  }
+  throw lastErr;
+}
+
 /**
  * Verify the webhook actually came from Meta.
  * Meta signs the raw request body with your App Secret (HMAC-SHA256) and sends
@@ -47,14 +75,14 @@ export async function downloadMedia(mediaId: string): Promise<DownloadedMedia> {
   const auth = { Authorization: `Bearer ${token}` };
 
   // 1. Resolve the temporary download URL
-  const metaRes = await fetch(`${GRAPH_BASE}/${mediaId}`, { headers: auth });
+  const metaRes = await metaFetch(`${GRAPH_BASE}/${mediaId}`, { headers: auth });
   if (!metaRes.ok) {
     throw new Error(`[WhatsApp] Media lookup failed (${metaRes.status})`);
   }
   const meta = (await metaRes.json()) as { url: string; mime_type: string };
 
   // 2. Fetch the actual bytes
-  const fileRes = await fetch(meta.url, { headers: auth });
+  const fileRes = await metaFetch(meta.url, { headers: auth });
   if (!fileRes.ok) {
     throw new Error(`[WhatsApp] Media download failed (${fileRes.status})`);
   }
@@ -73,7 +101,7 @@ export async function sendMessage(to: string, body: string): Promise<void> {
     throw new Error("WHATSAPP_TOKEN / WHATSAPP_PHONE_NUMBER_ID is not set");
   }
 
-  const res = await fetch(`${GRAPH_BASE}/${phoneNumberId}/messages`, {
+  const res = await metaFetch(`${GRAPH_BASE}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

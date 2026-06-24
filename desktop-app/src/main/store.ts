@@ -14,14 +14,55 @@ export interface Config {
   bwPrinter?: string                     // default printer for B&W files
   colourPrinter?: string                 // default printer for colour files
   shopId?: string                        // this shop's code (display only)
+  shopName?: string                      // friendly shop name for branding
   apiKey?: string                        // this shop's secret — scopes orders to this shop
+  // ── Vendor software settings ──
+  soundAlerts?: boolean                  // chime on new order
+  runOnStartup?: boolean                 // auto-launch with Windows
+  finishing?: FinishingPrices            // add-on charges for binding etc.
+  inventory?: Inventory                  // paper / toner tracking
+  staff?: StaffMember[]                  // counter operators
+  activeStaffId?: string                 // who is on shift right now
+  shiftStartedAt?: string                // ISO time the current shift began
+  lastToken?: number                     // last issued walk-in token number
+  tokens?: Token[]                       // walk-in token queue
   history: any[]
+}
+
+export interface StaffMember {
+  id: string
+  name: string
+  pin: string
+}
+
+export interface Token {
+  num: number
+  name?: string
+  status: 'waiting' | 'serving' | 'done'
+  at: string
+}
+
+export interface FinishingPrices {
+  softBinding?: number
+  spiralBinding?: number
+  lamination?: number
+  stapling?: number
+}
+
+export interface Inventory {
+  paperSheets?: number          // sheets remaining in stock
+  lowPaperThreshold?: number    // alert when below this
+  tonerPercent?: number         // 0–100 (manual estimate)
 }
 
 const defaultConfig: Config = {
   backendUrl: process.env.BACKEND_URL || process.env.API_URL || 'http://127.0.0.1:4000',
   systemEnabled: true,
   orderPrinters: {},
+  soundAlerts: true,
+  runOnStartup: false,
+  finishing: { softBinding: 30, spiralBinding: 40, lamination: 20, stapling: 0 },
+  inventory: { paperSheets: 0, lowPaperThreshold: 500, tonerPercent: 100 },
   history: []
 }
 

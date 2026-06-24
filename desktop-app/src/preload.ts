@@ -30,6 +30,15 @@ contextBridge.exposeInMainWorld('api', {
   getSelectedPrinter: () =>
     ipcRenderer.invoke('get-selected-printer'),
 
+  getPrinterHealth: () =>
+    ipcRenderer.invoke('get-printer-health'),
+
+  printTestPage: (printerName: string) =>
+    ipcRenderer.invoke('print-test-page', printerName),
+
+  pingBackend: () =>
+    ipcRenderer.invoke('ping-backend'),
+
   toggleSystem: (enabled: boolean) =>
     ipcRenderer.invoke('toggle-system', enabled),
 

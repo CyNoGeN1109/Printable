@@ -2,10 +2,10 @@
 // Sets up IPC handlers — main ↔ renderer communication
 // renderer calls ipcRenderer.invoke('channel', data) → main handles here
 
-import { ipcMain } from 'electron'
+import { ipcMain, app } from 'electron'
 import { addToQueue, retryQueue, pauseQueue, resumeQueue, cancelCurrentJob, getQueueStatus } from './queue'
 import { updateOrderStatus, confirmCashPayment, getOrdersByStatus, getAllOrders } from './api'
-import { getAvailablePrinters, setSelectedPrinter, getSelectedPrinter } from './printer'
+import { getAvailablePrinters, setSelectedPrinter, getSelectedPrinter, getPrinterHealth, printTestPage } from './printer'
 
 import { getConfig, setConfig } from './store'
 
@@ -17,7 +17,23 @@ export function setupIPC() {
 
   ipcMain.handle('update-config', async (_event, newConfig: any) => {
     setConfig(newConfig)
+    // Apply run-on-startup at the OS level when toggled
+    if (typeof newConfig.runOnStartup === 'boolean') {
+      try {
+        app.setLoginItemSettings({ openAtLogin: newConfig.runOnStartup, openAsHidden: false })
+      } catch (e) { console.error('[IPC] setLoginItemSettings failed:', e) }
+    }
     return { success: true }
+  })
+
+  // ─── Backend reachability ping (offline indicator) ─────────────────────────
+  ipcMain.handle('ping-backend', async () => {
+    try {
+      const res = await fetch(getConfig().backendUrl + '/health', { signal: AbortSignal.timeout(5000) })
+      return { online: res.ok }
+    } catch {
+      return { online: false }
+    }
   })
 
   // ─── Called by renderer when owner confirms CASH payment ───────────────────
@@ -55,6 +71,25 @@ export function setupIPC() {
 
   ipcMain.handle('get-selected-printer', async () => {
     return getSelectedPrinter()
+  })
+
+  // ─── Printer health (status, errors, queued jobs) ──────────────────────────
+  ipcMain.handle('get-printer-health', async () => {
+    try {
+      return await getPrinterHealth()
+    } catch (err: any) {
+      console.error('[IPC] get-printer-health failed:', err)
+      return []
+    }
+  })
+
+  ipcMain.handle('print-test-page', async (_event, printerName: string) => {
+    try {
+      await printTestPage(printerName)
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
   })
 
   // ─── Get current queue status ────────────────────────────────────────────────
