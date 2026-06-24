@@ -24,8 +24,6 @@ export interface Config {
   staff?: StaffMember[]                  // counter operators
   activeStaffId?: string                 // who is on shift right now
   shiftStartedAt?: string                // ISO time the current shift began
-  lastToken?: number                     // last issued walk-in token number
-  tokens?: Token[]                       // walk-in token queue
   history: any[]
 }
 
@@ -33,13 +31,6 @@ export interface StaffMember {
   id: string
   name: string
   pin: string
-}
-
-export interface Token {
-  num: number
-  name?: string
-  status: 'waiting' | 'serving' | 'done'
-  at: string
 }
 
 export interface FinishingPrices {

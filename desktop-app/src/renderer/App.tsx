@@ -6,16 +6,16 @@ import PrintQueue from './pages/PrintQueue'
 import Printers from './pages/Printers'
 import Inventory from './pages/Inventory'
 import Staff from './pages/Staff'
-import Tokens from './pages/Tokens'
+import Settings from './pages/Settings'
 import Onboarding from './pages/Onboarding'
 import ConfirmModal from './components/ConfirmModal'
 import { playChime } from './lib/alerts'
 import type { Order, QueueStatus, AppConfig, PrinterHealth } from './types'
 
-type Page = 'dashboard' | 'queue' | 'printers' | 'tokens' | 'history' | 'stats' | 'settings' | 'inventory' | 'staff'
+type Page = 'dashboard' | 'queue' | 'printers' | 'history' | 'stats' | 'settings' | 'inventory' | 'staff'
 
 const PAGE_TITLES: Record<Page, string> = {
-  dashboard: 'Overview', queue: 'Print Queue', printers: 'Printers', tokens: 'Walk-in Tokens',
+  dashboard: 'Overview', queue: 'Print Queue', printers: 'Printers',
   history: 'History', stats: 'Reports', settings: 'Settings',
   inventory: 'Inventory', staff: 'Staff & Shifts',
 }
@@ -159,7 +159,6 @@ export default function App() {
               <NavItem active={currentPage === 'dashboard'} icon="🏠" label="Overview" onClick={() => setCurrentPage('dashboard')} />
               <NavItem active={currentPage === 'queue'} icon="📄" label="Print queue" count={queueStatus.pending + (queueStatus.isProcessing ? 1 : 0)} onClick={() => setCurrentPage('queue')} />
               <NavItem active={currentPage === 'printers'} icon="🖨️" label="Printers" count={healthProblems.length} alert={healthProblems.length > 0} onClick={() => setCurrentPage('printers')} />
-              <NavItem active={currentPage === 'tokens'} icon="🎫" label="Walk-in tokens" onClick={() => setCurrentPage('tokens')} />
               <NavItem active={currentPage === 'history'} icon="🕒" label="History" onClick={() => setCurrentPage('history')} />
             </div>
           </div>
@@ -260,7 +259,6 @@ export default function App() {
           {currentPage === 'dashboard' && <Dashboard queueStatus={queueStatus} config={config} health={health} online={online} />}
           {currentPage === 'queue' && <PrintQueue queueStatus={queueStatus} />}
           {currentPage === 'printers' && <Printers config={config} onConfig={applyConfig} />}
-          {currentPage === 'tokens' && <Tokens config={config} onConfig={applyConfig} />}
           {currentPage === 'inventory' && <Inventory config={config} onConfig={applyConfig} />}
           {currentPage === 'staff' && <Staff config={config} onConfig={applyConfig} />}
           {currentPage === 'history' && <History />}
@@ -309,155 +307,6 @@ function NavItem({ active, icon, label, count, alert, onClick }: any) {
           {count}
         </span>
       )}
-    </div>
-  )
-}
-
-function Settings({ config, printers, onConfig }: any) {
-  const [url, setUrl] = useState(config?.backendUrl || '')
-  const [bw, setBw] = useState(config?.bwPrinter || '')
-  const [colour, setColour] = useState(config?.colourPrinter || '')
-  const [key, setKey] = useState(config?.apiKey || '')
-  const [shopName, setShopName] = useState(config?.shopName || '')
-  const soundOn = config?.soundAlerts !== false
-  const startupOn = config?.runOnStartup === true
-  const fin = config?.finishing || {}
-  const setFin = (k: string, v: string) => onConfig?.({ finishing: { ...fin, [k]: Number(v) || 0 } })
-
-  const printerNames: string[] = (printers || []).map((p: any) =>
-    typeof p === 'string' ? p : p.name || p.deviceId || 'Unknown'
-  )
-
-  const selectCls = "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-5 py-3 text-sm font-black text-zinc-700 focus:border-zinc-500 outline-none cursor-pointer"
-
-  return (
-    <div className="max-w-2xl space-y-6">
-      {/* Shop identity */}
-      <div className="bg-white border border-black/5 p-10 rounded-3xl shadow-sm">
-        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-2">This Shop</h3>
-        <p className="text-xs text-zinc-400 mb-8 font-medium">
-          Paste the setup key from when this shop was created. It links this app to your shop so you only ever see your own orders.
-        </p>
-        <label className="text-[10px] text-zinc-500 uppercase font-black mb-3 block tracking-widest">Shop Name</label>
-        <input
-          value={shopName}
-          onChange={(e) => setShopName(e.target.value)}
-          onBlur={() => onConfig?.({ shopName })}
-          className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-5 py-3 text-sm text-zinc-900 focus:border-zinc-500 outline-none mb-6"
-          placeholder="Sharma Xerox"
-        />
-        <label className="text-[10px] text-zinc-500 uppercase font-black mb-3 block tracking-widest">Shop Setup Key</label>
-        <div className="flex gap-4">
-          <input
-            type="password"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-5 py-3 text-sm text-zinc-900 focus:border-zinc-500 outline-none font-mono"
-            placeholder="sk_…"
-          />
-          <button
-            onClick={() => window.api.updateConfig({ apiKey: key }).then(() => alert('Shop linked. Only this shop’s orders will show now.'))}
-            className="btn-primary"
-          >Link Shop</button>
-        </div>
-      </div>
-
-      {/* Preferences */}
-      <div className="bg-white border border-black/5 p-10 rounded-3xl shadow-sm">
-        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-8">Preferences</h3>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-black text-zinc-800">🔔 Sound alert on new order</p>
-            <p className="text-xs text-zinc-400 font-medium mt-0.5">Play a chime so you never miss an order at the counter.</p>
-          </div>
-          <div
-            onClick={() => onConfig?.({ soundAlerts: !soundOn })}
-            className={`w-12 h-6 rounded-full transition-all cursor-pointer relative ${soundOn ? 'bg-zinc-700' : 'bg-zinc-300'}`}
-          >
-            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${soundOn ? 'left-7' : 'left-1'}`} />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mt-6 pt-6 border-t border-zinc-100">
-          <div>
-            <p className="text-sm font-black text-zinc-800">🚀 Start automatically with Windows</p>
-            <p className="text-xs text-zinc-400 font-medium mt-0.5">Launch Printable when the shop PC boots — so it's always running.</p>
-          </div>
-          <div
-            onClick={() => onConfig?.({ runOnStartup: !startupOn })}
-            className={`w-12 h-6 rounded-full transition-all cursor-pointer relative ${startupOn ? 'bg-zinc-700' : 'bg-zinc-300'}`}
-          >
-            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${startupOn ? 'left-7' : 'left-1'}`} />
-          </div>
-        </div>
-      </div>
-
-      {/* Finishing charges */}
-      <div className="bg-white border border-black/5 p-10 rounded-3xl shadow-sm">
-        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-2">Finishing charges</h3>
-        <p className="text-xs text-zinc-400 mb-8 font-medium">Add-on prices for binding, lamination &amp; stapling (₹). Used when you add finishing to an order.</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { k: 'softBinding', label: '📕 Soft binding' },
-            { k: 'spiralBinding', label: '🌀 Spiral binding' },
-            { k: 'lamination', label: '✨ Lamination' },
-            { k: 'stapling', label: '📎 Stapling' },
-          ].map(({ k, label }) => (
-            <div key={k}>
-              <label className="text-[10px] text-zinc-500 uppercase font-black mb-2 block tracking-widest">{label}</label>
-              <input defaultValue={(fin as any)[k] ?? 0} onBlur={(e) => setFin(k, e.target.value)} inputMode="numeric"
-                className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-sm font-black text-zinc-700 outline-none focus:border-zinc-500" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Printer routing */}
-      <div className="bg-white border border-black/5 p-10 rounded-3xl shadow-sm">
-        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-2">Printer Routing</h3>
-        <p className="text-xs text-zinc-400 mb-8 font-medium">
-          Colour jobs auto-route to your colour printer, B&amp;W jobs to your B&amp;W printer. (A manual per-order printer still overrides this.)
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="text-[10px] text-zinc-500 uppercase font-black mb-3 block tracking-widest">🖤 B &amp; W Printer</label>
-            <select value={bw} onChange={(e) => { setBw(e.target.value); window.api.updateConfig({ bwPrinter: e.target.value }) }} className={selectCls}>
-              <option value="">System Default</option>
-              {printerNames.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] text-zinc-500 uppercase font-black mb-3 block tracking-widest">🎨 Colour Printer</label>
-            <select value={colour} onChange={(e) => { setColour(e.target.value); window.api.updateConfig({ colourPrinter: e.target.value }) }} className={selectCls}>
-              <option value="">System Default</option>
-              {printerNames.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Backend endpoint */}
-      <div className="bg-white border border-black/5 p-10 rounded-3xl shadow-sm">
-        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-8">System Configuration</h3>
-        <div className="space-y-8">
-          <div>
-            <label className="text-[10px] text-zinc-500 uppercase font-black mb-3 block tracking-widest">Backend server endpoint</label>
-            <div className="flex gap-4">
-              <input
-                type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-5 py-3 text-sm text-zinc-900 focus:border-zinc-500 transition-all outline-none"
-                placeholder="http://127.0.0.1:4000"
-              />
-              <button
-                onClick={() => window.api.updateConfig({ backendUrl: url }).then(() => alert('Configuration updated.'))}
-                className="btn-primary"
-              >Save Changes</button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

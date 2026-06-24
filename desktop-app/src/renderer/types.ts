@@ -79,13 +79,6 @@ export interface StaffMember {
   pin: string
 }
 
-export interface Token {
-  num: number
-  name?: string
-  status: 'waiting' | 'serving' | 'done'
-  at: string
-}
-
 export interface AppConfig {
   backendUrl: string
   systemEnabled: boolean
@@ -102,8 +95,6 @@ export interface AppConfig {
   staff?: StaffMember[]
   activeStaffId?: string
   shiftStartedAt?: string
-  lastToken?: number
-  tokens?: Token[]
   history: Order[]
 }
 

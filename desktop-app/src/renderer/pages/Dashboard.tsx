@@ -29,7 +29,6 @@ export default function Dashboard({ queueStatus, config, health, online }: {
   const paper = inv?.paperSheets
   const lowPaper = typeof paper === 'number' && paper <= (inv?.lowPaperThreshold ?? 0)
   const activeStaff = config?.staff?.find((s) => s.id === config?.activeStaffId)
-  const waitingTokens = (config?.tokens || []).filter((t) => t.status === 'waiting').length
 
   const pendingOrders = orders.filter((o) => o.status === 'pending_payment')
   const printingOrders = orders.filter((o) => o.status === 'printing')
@@ -59,7 +58,6 @@ export default function Dashboard({ queueStatus, config, health, online }: {
           <StatusChip ok={!lowPaper} label={`${paper.toLocaleString()} sheets`} icon="📄" />
         )}
         <StatusChip ok={!!activeStaff} neutral={!activeStaff} label={activeStaff ? `${activeStaff.name} on shift` : 'No shift'} icon="👤" />
-        {waitingTokens > 0 && <StatusChip ok neutral label={`${waitingTokens} waiting`} icon="🎫" />}
       </div>
 
       {/* Bento stat grid */}
