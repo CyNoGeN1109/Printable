@@ -2,9 +2,10 @@
 // Business reporting: pick a period, see revenue / orders / pages / channel split
 // / busiest hours, and export to CSV.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Order } from '../types'
 import { Card, SectionLabel, Button } from '../components/ui'
+import { useAllOrders } from '../lib/useAllOrders'
 
 type Period = 'today' | '7d' | '30d' | 'all'
 const PERIODS: { key: Period; label: string }[] = [
@@ -15,18 +16,8 @@ const PERIODS: { key: Period; label: string }[] = [
 const pagesOf = (o: Order) => (o.files || []).reduce((s, f) => s + (f.pages || 0) * (f.copies || 1), 0)
 
 export default function Reports() {
-  const [orders, setOrders] = useState<Order[]>([])
+  const { orders, loading } = useAllOrders()
   const [period, setPeriod] = useState<Period>('today')
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    Promise.all([window.api.getOrders().catch(() => []), window.api.getHistory().catch(() => [])])
-      .then(([live, hist]) => {
-        const map = new Map<string, Order>()
-        ;[...(hist as Order[]), ...(live as Order[])].forEach((o) => o?.orderId && map.set(o.orderId, o))
-        setOrders([...map.values()]); setLoading(false)
-      })
-  }, [])
 
   const inPeriod = useMemo(() => {
     const now = Date.now()

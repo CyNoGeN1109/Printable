@@ -3,27 +3,19 @@
 // operator starts a shift, and at close the app shows orders/revenue handled
 // during that shift — accountability against the #1 owner fear (cash leakage).
 
-import { useEffect, useState } from 'react'
-import type { AppConfig, StaffMember, Order } from '../types'
+import { useState } from 'react'
+import type { AppConfig, StaffMember } from '../types'
+import { useAllOrders } from '../lib/useAllOrders'
 
 export default function Staff({ config, onConfig }: { config: AppConfig | null; onConfig: (c: Partial<AppConfig>) => void }) {
   const staff = config?.staff || []
   const active = staff.find((s) => s.id === config?.activeStaffId) || null
-  const [orders, setOrders] = useState<Order[]>([])
+  const { orders } = useAllOrders([active?.id, config?.shiftStartedAt])
 
   const [name, setName] = useState('')
   const [pin, setPin] = useState('')
   const [loginId, setLoginId] = useState('')
   const [loginPin, setLoginPin] = useState('')
-
-  useEffect(() => {
-    Promise.all([window.api.getOrders().catch(() => []), window.api.getHistory().catch(() => [])])
-      .then(([live, hist]) => {
-        const map = new Map<string, Order>()
-        ;[...(hist as Order[]), ...(live as Order[])].forEach((o) => o?.orderId && map.set(o.orderId, o))
-        setOrders([...map.values()])
-      })
-  }, [active])
 
   const addStaff = () => {
     if (!name.trim() || pin.length < 3) return

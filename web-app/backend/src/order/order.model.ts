@@ -72,7 +72,7 @@ const OrderSchema = new Schema<IOrder>(
     },
     shopId: {
       type:  String,
-      index: true,
+      // indexed via the compound { shopId, status, createdAt } below
     },
     userName: {
       type:     String,
@@ -104,7 +104,15 @@ const OrderSchema = new Schema<IOrder>(
   }
 );
 
-// Index for fast polling query: GET /orders?status=...
+// Fast polling query: GET /orders?status=...  (single-shop / global)
 OrderSchema.index({ status: 1, createdAt: -1 });
+
+// Multi-tenant poller: GET /orders?status=... scoped to a shop (x-shop-key).
+// A prefix on { shopId } also covers getAllOrders(shopId).
+OrderSchema.index({ shopId: 1, status: 1, createdAt: -1 });
+
+// Payment confirmation marks every split order by its Razorpay id (updateMany).
+// Sparse: only online orders carry this field.
+OrderSchema.index({ razorpayOrderId: 1 }, { sparse: true });
 
 export const Order = mongoose.model<IOrder>("Order", OrderSchema);
