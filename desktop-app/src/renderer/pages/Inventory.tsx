@@ -33,7 +33,7 @@ export default function Inventory({ config, onConfig }: { config: AppConfig | nu
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Paper */}
-        <div className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm">
+        <div className="bg-white border border-zinc-200/70 rounded-3xl p-8 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">📄 Paper stock</h3>
             {lowPaper && <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-200 rounded px-2 py-0.5">LOW</span>}
@@ -56,7 +56,7 @@ export default function Inventory({ config, onConfig }: { config: AppConfig | nu
         </div>
 
         {/* Toner */}
-        <div className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm">
+        <div className="bg-white border border-zinc-200/70 rounded-3xl p-8 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">🩸 Toner / ink</h3>
             {lowToner && <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-200 rounded px-2 py-0.5">LOW</span>}

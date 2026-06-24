@@ -80,7 +80,7 @@ export default function Staff({ config, onConfig }: { config: AppConfig | null; 
           </div>
         </div>
       ) : (
-        <div className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm">
+        <div className="bg-white border border-zinc-200/70 rounded-3xl p-8 shadow-sm">
           <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-5">Start a shift</h3>
           {staff.length === 0 ? (
             <p className="text-sm text-zinc-400 font-bold">Add a staff member below first.</p>
@@ -100,7 +100,7 @@ export default function Staff({ config, onConfig }: { config: AppConfig | null; 
       )}
 
       {/* Manage staff */}
-      <div className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm">
+      <div className="bg-white border border-zinc-200/70 rounded-3xl p-8 shadow-sm">
         <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-5">Staff members</h3>
         <div className="space-y-2 mb-6">
           {staff.map((s) => (
