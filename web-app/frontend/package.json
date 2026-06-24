@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "framer-motion": "^12.41.0",
     "jszip": "^3.10.1",
     "next": "16.2.4",
     "pdfjs-dist": "^3.11.174",
