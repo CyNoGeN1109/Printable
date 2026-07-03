@@ -4,7 +4,7 @@
 
 import { ipcMain, app } from 'electron'
 import { addToQueue, retryQueue, pauseQueue, resumeQueue, cancelCurrentJob, getQueueStatus } from './queue'
-import { updateOrderStatus, confirmCashPayment, getOrdersByStatus, getAllOrders } from './api'
+import { updateOrderStatus, confirmCashPayment, getOrdersByStatus, getActiveOrders } from './api'
 import { getAvailablePrinters, setSelectedPrinter, getSelectedPrinter, getPrinterHealth, printTestPage } from './printer'
 import { getPrinterSupplies } from './supplies'
 
@@ -145,7 +145,9 @@ export function setupIPC() {
   // ─── Get all orders from backend ──────────────────────────────────────────
   ipcMain.handle('get-orders', async () => {
     try {
-      return await getAllOrders()
+      // Single request — backend accepts comma-separated status filter.
+      // Active-only: completed/cancelled orders are already in local history.
+      return await getActiveOrders()
     } catch (err: any) {
       console.error('[IPC] get-orders failed:', err)
       return []

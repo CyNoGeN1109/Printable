@@ -5,7 +5,11 @@ import * as dotenv from 'dotenv'
 
 dotenv.config()
 
-const configPath = path.join(app.getPath('userData'), 'config.json')
+let configPath: string | null = null
+function getConfigPath(): string {
+  if (!configPath) configPath = path.join(app.getPath('userData'), 'config.json')
+  return configPath
+}
 
 export interface Config {
   backendUrl: string
@@ -51,8 +55,8 @@ const defaultConfig: Config = {
 
 export function getConfig(): Config {
   try {
-    if (fs.existsSync(configPath)) {
-      const data = fs.readFileSync(configPath, 'utf-8')
+    if (fs.existsSync(getConfigPath())) {
+      const data = fs.readFileSync(getConfigPath(), 'utf-8')
       const parsed = JSON.parse(data)
       // Force environment variable to take precedence over saved config
       if (process.env.BACKEND_URL) {
@@ -70,7 +74,7 @@ export function setConfig(newConfig: Partial<Config>) {
   try {
     const current = getConfig()
     const updated = { ...current, ...newConfig }
-    fs.writeFileSync(configPath, JSON.stringify(updated, null, 2))
+    fs.writeFileSync(getConfigPath(), JSON.stringify(updated, null, 2))
     console.log('[Store] Config updated:', updated)
   } catch (err) {
     console.error('[Store] Failed to save config:', err)

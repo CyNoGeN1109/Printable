@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /track/
+Disallow: /checkout
+Disallow: /print/
+Disallow: /admin

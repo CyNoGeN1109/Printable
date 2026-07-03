@@ -7,6 +7,23 @@ import { useState } from 'react'
 export default function Onboarding({ onDone, onSkip }: { onDone: (name: string, key: string) => void; onSkip: () => void }) {
   const [name, setName] = useState('')
   const [key, setKey] = useState('')
+  const [keyError, setKeyError] = useState('')
+
+  const canSubmit = name.trim().length > 0 && key.trim().length > 0
+
+  const handleSubmit = () => {
+    if (!canSubmit) return
+    if (!key.trim().startsWith('sk_')) {
+      setKeyError('Setup key should start with sk_')
+      return
+    }
+    setKeyError('')
+    onDone(name.trim(), key.trim())
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleSubmit()
+  }
 
   return (
     <div className="h-screen w-screen flex items-center justify-center bg-[#F4F4F5] relative overflow-hidden">
@@ -17,16 +34,34 @@ export default function Onboarding({ onDone, onSkip }: { onDone: (name: string, 
         <p className="text-sm text-zinc-500 font-medium mt-1 mb-8">Link this computer to your shop to start receiving orders.</p>
 
         <label className="text-[10px] text-zinc-500 uppercase font-black mb-2 block tracking-widest">Shop name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Sharma Xerox"
-          className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-5 py-3 text-sm outline-none focus:border-zinc-500 mb-5" />
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Sharma Xerox"
+          className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-5 py-3 text-sm outline-none focus:border-zinc-500 mb-5"
+        />
 
         <label className="text-[10px] text-zinc-500 uppercase font-black mb-2 block tracking-widest">Setup key</label>
-        <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="sk_…" type="password"
-          className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-5 py-3 text-sm font-mono outline-none focus:border-zinc-500" />
-        <p className="text-[11px] text-zinc-400 font-medium mt-2">Get this from the Printable admin page when you created the shop.</p>
+        <input
+          value={key}
+          onChange={(e) => { setKey(e.target.value); setKeyError('') }}
+          onKeyDown={handleKeyDown}
+          placeholder="sk_…"
+          type="password"
+          className={`w-full bg-zinc-50 border rounded-xl px-5 py-3 text-sm font-mono outline-none transition-colors ${keyError ? 'border-red-400 focus:border-red-500' : 'border-zinc-200 focus:border-zinc-500'}`}
+        />
+        {keyError ? (
+          <p className="text-[11px] text-red-500 font-medium mt-2">{keyError}</p>
+        ) : (
+          <p className="text-[11px] text-zinc-400 font-medium mt-2">Get this from the Printable admin page when you created the shop.</p>
+        )}
 
-        <button onClick={() => key.trim() && onDone(name.trim(), key.trim())} disabled={!key.trim()}
-          className="w-full mt-7 bg-[#0C831F] disabled:opacity-40 text-white font-black py-3.5 rounded-xl hover:opacity-90 transition-all">
+        <button
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+          className="w-full mt-7 bg-[#0C831F] disabled:opacity-40 text-white font-black py-3.5 rounded-xl hover:opacity-90 transition-all"
+        >
           Link shop &amp; start
         </button>
         <button onClick={onSkip} className="w-full mt-3 text-zinc-400 text-xs font-black hover:text-zinc-600">

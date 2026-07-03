@@ -2,22 +2,28 @@
 // Business reporting: pick a period, see revenue / orders / pages / channel split
 // / busiest hours, and export to CSV.
 
-import { useMemo, useState } from 'react'
-import type { Order } from '../types'
+import { useMemo, useState, useEffect } from 'react'
+import type { Order, AppConfig } from '../types'
 import { Card, SectionLabel, Button } from '../components/ui'
 import { useAllOrders } from '../lib/useAllOrders'
 
 type Period = 'today' | '7d' | '30d' | 'all'
 const PERIODS: { key: Period; label: string }[] = [
   { key: 'today', label: 'Today' }, { key: '7d', label: '7 days' },
-  { key: '30d', label: '30 days' }, { key: 'all', label: 'All time' },
+  { key: '30d', label: '30 days' }, { key: 'all', label: 'Since install' },
 ]
 
 const pagesOf = (o: Order) => (o.files || []).reduce((s, f) => s + (f.pages || 0) * (f.copies || 1), 0)
 
 export default function Reports() {
-  const { orders, loading } = useAllOrders()
+  const [refreshKey, setRefreshKey] = useState(0)
+  const { orders, loading } = useAllOrders([refreshKey])
   const [period, setPeriod] = useState<Period>('today')
+  const [shopName, setShopName] = useState('')
+
+  useEffect(() => {
+    window.api.getConfig().then((cfg: AppConfig) => setShopName(cfg.shopName || 'printable'))
+  }, [])
 
   const inPeriod = useMemo(() => {
     const now = Date.now()
@@ -33,6 +39,10 @@ export default function Reports() {
   const cash = done.filter((o) => o.paymentMode === 'offline').length
   const avg = done.length ? revenue / done.length : 0
 
+  // Print-type breakdown — useful for toner/ink planning
+  const colourPages = done.reduce((s, o) => s + (o.files || []).filter(f => f.colour).reduce((p, f) => p + (f.pages || 0) * (f.copies || 1), 0), 0)
+  const bwPages = pages - colourPages
+
   const byHour = useMemo(() => {
     const h = new Array(24).fill(0)
     done.forEach((o) => { h[new Date(o.createdAt).getHours()]++ })
@@ -43,13 +53,18 @@ export default function Reports() {
 
   const exportCsv = () => {
     const rows = [
-      ['Order ID', 'Customer', 'Date', 'Status', 'Payment', 'Pages', 'Amount'],
-      ...inPeriod.map((o) => [o.orderId, o.userName || o.customerName || '', new Date(o.createdAt).toLocaleString(), o.status, o.paymentMode, String(pagesOf(o)), String(o.totalAmount || 0)]),
+      ['Order ID', 'Customer', 'Date', 'Status', 'Payment', 'B&W Pages', 'Colour Pages', 'Total Pages', 'Amount'],
+      ...inPeriod.map((o) => {
+        const bw = (o.files || []).filter(f => !f.colour).reduce((p, f) => p + (f.pages || 0) * (f.copies || 1), 0)
+        const col = (o.files || []).filter(f => f.colour).reduce((p, f) => p + (f.pages || 0) * (f.copies || 1), 0)
+        return [o.orderId, o.userName || o.customerName || '', new Date(o.createdAt).toLocaleString(), o.status, o.paymentMode, String(bw), String(col), String(bw + col), String(o.totalAmount || 0)]
+      }),
     ]
     const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
     const a = document.createElement('a')
-    a.href = url; a.download = `printable-report-${period}-${new Date().toISOString().slice(0, 10)}.csv`
+    const slug = shopName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    a.href = url; a.download = `${slug}-report-${period}-${new Date().toISOString().slice(0, 10)}.csv`
     a.click(); URL.revokeObjectURL(url)
   }
 
@@ -64,6 +79,7 @@ export default function Reports() {
             </button>
           ))}
         </div>
+        <Button variant="ghost" onClick={() => setRefreshKey(k => k + 1)} disabled={loading}>↻ Refresh</Button>
         <div className="ml-auto"><Button variant="ghost" onClick={exportCsv} disabled={!inPeriod.length}>⬇️ Export CSV</Button></div>
       </div>
 
@@ -74,12 +90,21 @@ export default function Reports() {
         <Metric label="Avg. order" value={`₹${avg.toFixed(0)}`} icon="📈" />
       </div>
 
-      <Card>
-        <SectionLabel>Payment channels</SectionLabel>
-        <Bar label="🌐 Online / UPI" value={online} total={done.length} color="bg-zinc-900" />
-        <div className="h-3" />
-        <Bar label="💵 Cash at counter" value={cash} total={done.length} color="bg-zinc-400" />
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <Card>
+          <SectionLabel>Payment channels</SectionLabel>
+          <Bar label="🌐 Online / UPI" value={online} total={done.length} color="bg-zinc-900" />
+          <div className="h-3" />
+          <Bar label="💵 Cash at counter" value={cash} total={done.length} color="bg-zinc-400" />
+        </Card>
+
+        <Card>
+          <SectionLabel>Print type</SectionLabel>
+          <Bar label="🖤 B&W pages" value={bwPages} total={pages} color="bg-zinc-800" />
+          <div className="h-3" />
+          <Bar label="🎨 Colour pages" value={colourPages} total={pages} color="bg-amber-500" />
+        </Card>
+      </div>
 
       <Card>
         <SectionLabel right={done.length > 0 ? <span className="text-xs font-black text-zinc-500">Peak: {fmtHour(peakHour)}</span> : undefined}>Busiest hours</SectionLabel>

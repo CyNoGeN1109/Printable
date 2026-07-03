@@ -13,7 +13,10 @@ const STAGE_LABEL: Record<string, string> = {
 }
 
 export default function Dashboard({ queueStatus, config, health, online }: {
-  queueStatus?: QueueStatus; config?: AppConfig | null; health?: PrinterHealth[]; online?: boolean
+  queueStatus?: QueueStatus
+  config?: AppConfig | null
+  health?: PrinterHealth[]
+  online?: boolean
 }) {
   const { orders, isLoading } = useOrders()
   const [historyCount, setHistoryCount] = useState(0)
@@ -22,15 +25,16 @@ export default function Dashboard({ queueStatus, config, health, online }: {
     window.api.getHistory().then(h => setHistoryCount(h.length))
   }, [])
 
-  // System status chips (command-center view)
-  const healthProblems = (health || []).filter((p) => !p.ok && p.status !== 'unknown')
-  const okPrinters = (health || []).filter((p) => p.ok).length
-  const supplyLow = (health || []).some((p) => ['paper_out', 'paper_low', 'toner_out', 'toner_low'].includes(p.status))
-  const activeStaff = config?.staff?.find((s) => s.id === config?.activeStaffId)
+  const healthList     = health || []
+  const healthProblems = healthList.filter((p) => !p.ok && p.status !== 'unknown')
+  const okPrinters     = healthList.filter((p) => p.ok).length
+  const supplyLow      = healthList.some((p) => ['paper_out', 'paper_low', 'toner_out', 'toner_low'].includes(p.status))
+  const activeStaff    = config?.staff?.find((s) => s.id === config?.activeStaffId)
 
-  const pendingOrders = orders.filter((o) => o.status === 'pending_payment')
+  // Cash orders need manual authorization — primary action on the dashboard
+  const cashOrders    = orders.filter((o) => o.status === 'pending_payment' && o.paymentMode === 'offline')
   const printingOrders = orders.filter((o) => o.status === 'printing')
-  const todayRevenue = orders
+  const todayRevenue   = orders
     .filter(o => o.status === 'completed' && new Date(o.createdAt).toDateString() === new Date().toDateString())
     .reduce((sum, o) => sum + o.totalAmount, 0)
 
@@ -43,101 +47,118 @@ export default function Dashboard({ queueStatus, config, health, online }: {
   }
 
   return (
-    <div className="animate-slide-up relative z-10">
-      {/* System status strip — the whole shop at a glance */}
-      <div className="flex flex-wrap gap-2.5 mb-7">
+    <div className="animate-slide-up relative z-10 space-y-8">
+
+      {/* ── Status strip ── */}
+      <div className="flex flex-wrap gap-2.5">
         <StatusChip ok={online !== false} label={online === false ? 'Server offline' : 'Server online'} icon={online === false ? '📡' : '🟢'} />
         <StatusChip
           ok={healthProblems.length === 0}
-          label={healthProblems.length === 0 ? `${okPrinters || 'No'} printer${okPrinters !== 1 ? 's' : ''} ready` : `${healthProblems.length} printer issue${healthProblems.length !== 1 ? 's' : ''}`}
+          neutral={healthList.length === 0}
+          label={
+            healthList.length === 0 ? 'Checking printers…'
+            : healthProblems.length > 0 ? `${healthProblems.length} printer issue${healthProblems.length !== 1 ? 's' : ''}`
+            : `${okPrinters} printer${okPrinters !== 1 ? 's' : ''} ready`
+          }
           icon="🖨️"
         />
-        {(health || []).length > 0 && (
+        {healthList.length > 0 && (
           <StatusChip ok={!supplyLow} label={supplyLow ? 'Supplies low' : 'Supplies OK'} icon="🩸" />
         )}
-        <StatusChip ok={!!activeStaff} neutral={!activeStaff} label={activeStaff ? `${activeStaff.name} on shift` : 'No shift'} icon="👤" />
+        <StatusChip
+          ok={!!activeStaff}
+          neutral={!activeStaff}
+          label={activeStaff ? `${activeStaff.name} on shift` : 'No shift'}
+          icon="👤"
+        />
       </div>
 
-      {/* Bento stat grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-9 stagger">
-        <StatCard title="Active Prints"   value={printingOrders.length} icon="🖨️" tint="tint-emerald" live={printingOrders.length > 0} />
-        <StatCard title="Payment Pending" value={pendingOrders.length}  icon="💳" tint="tint-amber"   sub={pendingOrders.length ? 'needs action' : 'all clear'} />
-        <StatCard title="Completed"       value={historyCount}          icon="✅" tint="tint-indigo" />
-        <StatCard title="Revenue Today"   value={todayRevenue}          icon="₹"  tint="tint-rose"   prefix="₹" />
-      </div>
-
-      <div className="space-y-9">
-        {/* Priority queue */}
-        <section>
-          <SectionHead label="Priority Queue" rightLabel={`${pendingOrders.length} waiting`} />
-          <div className="glass-card rounded-[1.75rem] p-8 min-h-[280px] flex flex-col">
-            {pendingOrders.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center">
-                <div className="icon-chip w-16 h-16 text-2xl mb-5 float-glow">📋</div>
-                <h3 className="text-xl font-black text-zinc-800">Queue is clear</h3>
-                <p className="text-sm text-zinc-400 mt-1 font-medium">New orders appear here automatically</p>
-              </div>
-            ) : (
-              <div className="w-full space-y-3 stagger">
-                {pendingOrders.map((order) => (
-                  <OrderCard key={order._id} order={order} />
-                ))}
-              </div>
+      {/* ── Cash Orders — primary action ── */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Cash Orders</h3>
+            {cashOrders.length > 0 && (
+              <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
+                {cashOrders.length} need{cashOrders.length === 1 ? 's' : ''} action
+              </span>
             )}
           </div>
-        </section>
+        </div>
 
-        {/* Live monitoring */}
-        <section>
-          <SectionHead label="Live Monitoring" live />
-          <div className="glass-card rounded-[1.75rem] overflow-hidden">
-            <div className="px-7 py-4 border-b border-black/[0.04] flex items-center gap-3">
-              <span className="w-2.5 h-2.5 bg-[#0C831F] rounded-full pulse-dot" />
-              <span className="text-xs font-black text-zinc-500 uppercase tracking-widest">Active jobs feed</span>
-              {queueStatus?.isPaused && (
-                <span className="ml-auto status-badge bg-amber-100 text-amber-700">Paused</span>
-              )}
+        {cashOrders.length === 0 ? (
+          <div className="glass-card rounded-[1.75rem] p-8 flex items-center gap-5">
+            <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center text-xl float-glow shrink-0">💵</div>
+            <div>
+              <h3 className="text-base font-black text-zinc-800">No cash orders pending</h3>
+              <p className="text-sm text-zinc-400 font-medium mt-0.5">New walk-in orders will appear here for authorization</p>
             </div>
+          </div>
+        ) : (
+          <div className="space-y-3 stagger">
+            {cashOrders.map((order) => (
+              <OrderCard key={order._id} order={order} />
+            ))}
+          </div>
+        )}
+      </section>
 
-            <div className="p-7">
-              {printingOrders.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 stagger">
-                  {printingOrders.map(order => {
-                    const isCurrent = queueStatus?.currentOrderId === order.orderId
-                    const pct = isCurrent ? Math.max(6, queueStatus!.progress.percent) : 50
-                    const stage = isCurrent ? (STAGE_LABEL[queueStatus!.progress.stage] ?? 'Working') : 'In pipeline'
-                    return (
-                      <div key={order._id} className="bg-white/80 p-5 rounded-2xl border border-black/[0.04] shadow-sm hover:shadow-md transition-all">
-                        <div className="flex items-center gap-4">
-                          <div className="icon-chip text-xl">🖨️</div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none mb-1">#{order.orderId}</p>
-                            <p className="text-sm font-black text-zinc-800 truncate">{order.files[0]?.fileName}</p>
-                          </div>
-                          <span className="text-sm font-black text-[#0C831F] tabular-nums">{pct}%</span>
+      {/* ── Stats row ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger">
+        <StatCard title="Active Prints"   value={printingOrders.length} icon="🖨️" tint="tint-emerald" live={printingOrders.length > 0} />
+        <StatCard title="Completed"       value={historyCount}          icon="✅" tint="tint-indigo" />
+        <StatCard title="Revenue Today"   value={todayRevenue}          icon="₹"  tint="tint-rose"   prefix="₹" />
+        <StatCard title="Queue Depth"     value={queueStatus ? queueStatus.pending + (queueStatus.isProcessing ? 1 : 0) : 0} icon="📋" tint="tint-amber" />
+      </div>
+
+      {/* ── Live monitoring ── */}
+      {printingOrders.length > 0 && (
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Live Monitoring</h3>
+            <span className="bg-[#0C831F]/10 text-[#0C831F] text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#0C831F] pulse-dot" /> Live
+            </span>
+          </div>
+          <div className="glass-card rounded-[1.75rem] overflow-hidden">
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger">
+                {printingOrders.map(order => {
+                  const isCurrent = queueStatus?.currentOrderId === order.orderId
+                  const pct       = isCurrent ? Math.max(6, queueStatus!.progress.percent) : 50
+                  const stage     = isCurrent ? (STAGE_LABEL[queueStatus!.progress.stage] ?? 'Working') : 'In pipeline'
+                  return (
+                    <div key={order._id} className="bg-white/80 p-4 rounded-2xl border border-black/[0.04] shadow-sm">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="icon-chip text-lg">🖨️</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none mb-0.5">
+                            #{order.orderId}
+                          </p>
+                          <p className="text-sm font-black text-zinc-800 truncate">
+                            {order.userName || 'Walk-in'}
+                          </p>
                         </div>
-                        <div className="progress-track h-2 mt-4">
-                          <div className="progress-fill" style={{ width: `${pct}%` }} />
-                        </div>
-                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">{stage}</p>
+                        <span className="text-sm font-black text-[#0C831F] tabular-nums shrink-0">{pct}%</span>
                       </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-sm font-black uppercase tracking-[0.3em] text-zinc-300">No active jobs</p>
-                </div>
-              )}
+                      <div className="progress-track h-1.5">
+                        <div className="progress-fill" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">{stage}</p>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </section>
-      </div>
+      )}
     </div>
   )
 }
 
-/* ── Animated count-up number ─────────────────────────────────────────── */
+// ── Helpers ────────────────────────────────────────────────────────────────
+
 function useCountUp(target: number, duration = 700) {
   const [val, setVal] = useState(0)
   const ref = useRef(0)
@@ -159,8 +180,10 @@ function useCountUp(target: number, duration = 700) {
   return val
 }
 
-function StatCard({ title, value, icon, tint, prefix = '', sub, live }: any) {
-  const count = useCountUp(typeof value === 'number' ? value : 0)
+function StatCard({ title, value, icon, tint, prefix = '', sub, live }: {
+  title: string; value: number; icon: string; tint: string; prefix?: string; sub?: string; live?: boolean
+}) {
+  const count = useCountUp(value)
   return (
     <div className={`stat-card ${tint}`}>
       <div className="flex items-start justify-between w-full relative z-10">
@@ -171,7 +194,7 @@ function StatCard({ title, value, icon, tint, prefix = '', sub, live }: any) {
         <h3 className="text-[2.6rem] leading-none font-black text-zinc-800 tracking-tight tabular-nums">
           {prefix}{count}
         </h3>
-        {sub && <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">{sub}</p>}
+        {sub  && <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">{sub}</p>}
         {live && <p className="text-[10px] font-bold text-[#0C831F] uppercase tracking-widest mt-2 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#0C831F] pulse-dot" /> running now</p>}
       </div>
     </div>
@@ -188,22 +211,6 @@ function StatusChip({ ok, neutral, label, icon }: { ok: boolean; neutral?: boole
     <div className={`flex items-center gap-2 border rounded-xl px-3.5 py-2 text-[11px] font-black ${tone}`}>
       <span className="text-sm leading-none">{icon}</span>
       <span>{label}</span>
-    </div>
-  )
-}
-
-function SectionHead({ label, rightLabel, live }: { label: string; rightLabel?: string; live?: boolean }) {
-  return (
-    <div className="flex items-center justify-between mb-5">
-      <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">{label}</h3>
-      {rightLabel && (
-        <span className="bg-white/70 border border-black/[0.04] text-zinc-500 text-[10px] font-black px-3 py-1 rounded-full uppercase">{rightLabel}</span>
-      )}
-      {live && (
-        <span className="bg-[#0C831F]/10 text-[#0C831F] text-[10px] font-black px-3 py-1 rounded-full uppercase flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#0C831F] pulse-dot" /> Live
-        </span>
-      )}
     </div>
   )
 }

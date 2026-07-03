@@ -9,6 +9,7 @@ const POLL_INTERVAL = 5000
 
 let previousOrderIds = new Set<string>()
 let pollingTimer: NodeJS.Timeout | null = null
+let isFirstPoll = true
 
 export function startPolling(mainWindow: BrowserWindow) {
   console.log('[Poller] Starting — polling every 5s')
@@ -19,11 +20,20 @@ export function startPolling(mainWindow: BrowserWindow) {
       if (!config.systemEnabled) {
         return
       }
-      
+
       const orders: Order[] = await getPendingOrders()
+      const currentIds = new Set(orders.map((o) => o.orderId))
+
+      if (isFirstPoll) {
+        // Seed the set with existing orders so they don't trigger "new order" modals
+        // on startup. Pre-existing pending orders are already visible in the Dashboard.
+        previousOrderIds = currentIds
+        isFirstPoll = false
+        console.log(`[Poller] Seeded ${currentIds.size} existing order(s) — watching for new arrivals`)
+        return
+      }
 
       const newOrders = orders.filter((o) => !previousOrderIds.has(o.orderId))
-
       newOrders.forEach((order) => {
         console.log(`[Poller] New order detected: ${order.orderId}`)
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -31,7 +41,7 @@ export function startPolling(mainWindow: BrowserWindow) {
         }
       })
 
-      previousOrderIds = new Set(orders.map((o) => o.orderId))
+      previousOrderIds = currentIds
     } catch (err) {
       console.error('[Poller] Failed to fetch orders:', err)
     }

@@ -74,9 +74,9 @@ export async function getOrdersByStatus(status: string): Promise<Order[]> {
 }
 
 // GET /orders  → fetch all orders for the renderer
-export async function getAllOrders(): Promise<Order[]> {
+export async function getActiveOrders(): Promise<Order[]> {
   try {
-    const res = await apiClient.get('/orders')
+    const res = await apiClient.get('/orders?status=pending_payment,paid,printing')
     return res.data || []
   } catch (err: any) {
     throw err

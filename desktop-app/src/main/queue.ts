@@ -141,6 +141,7 @@ async function processNext() {
 
   let isPrinterError = false
   let processedOrder: any = null
+  const downloadedFiles: Array<{ identifier: string; fileName: string }> = []
 
   try {
     // Stage 1: Fetch order details
@@ -175,6 +176,7 @@ async function processNext() {
       setStage('downloading')
       console.log(`[Queue] Downloading file ${i + 1}/${files.length}: ${file.fileName}`)
       const localPath = await downloadFile(file.fileUrl, fileIdentifier, file.fileName)
+      downloadedFiles.push({ identifier: fileIdentifier, fileName: file.fileName })
 
       // Check for cancel before sending to printer
       if (isCancelRequested) {
@@ -227,6 +229,8 @@ async function processNext() {
   } catch (err: any) {
     if (err instanceof PrinterError) {
       isPrinterError = true
+      // Clean up any temp files that were downloaded before the error
+      downloadedFiles.forEach(({ identifier, fileName }) => cleanupFile(identifier, fileName))
       await updateOrderStatus(orderId, 'paid').catch(() => {})
       broadcastPrinterError(orderId, err.message)
       new Notification({ 
