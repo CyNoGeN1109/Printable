@@ -21,8 +21,6 @@ out/
 # ─── Desktop bundled binaries ──────────────────────────────────────────────────
 mupdf/
 
-# ─── Marketing site: separate cloned repo (has its own git/remote) ─────────────
-marketing-app/
 
 # ─── Local agent memory (not platform code) ────────────────────────────────────
 memory/
