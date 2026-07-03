@@ -9,6 +9,144 @@ import {
   type ReactNode,
   type CSSProperties,
 } from "react";
+import Lenis from "lenis";
+
+/* ───────────────────────────────────────────────────────────────────────────
+   SmoothScroll — buttery inertial scrolling via Lenis. Mount once per page.
+   Falls back to native scrolling when the user prefers reduced motion.
+   ─────────────────────────────────────────────────────────────────────────── */
+let lenisInstance: Lenis | null = null;
+
+export function SmoothScroll() {
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const lenis = new Lenis({
+      lerp: 0.115,
+      wheelMultiplier: 1,
+      touchMultiplier: 1.6,
+    });
+    lenisInstance = lenis;
+    let raf = 0;
+    const loop = (t: number) => {
+      lenis.raf(t);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      lenis.destroy();
+      lenisInstance = null;
+    };
+  }, []);
+  return null;
+}
+
+/* Scroll helper — routes through Lenis when active so easing stays consistent.
+   The fallback keeps the fixed-nav offset and honors prefers-reduced-motion. */
+export function scrollToId(id: string, offset = -72) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (lenisInstance && !reduced) {
+    lenisInstance.scrollTo(el, {
+      offset,
+      duration: 1.25,
+      easing: (t: number) => 1 - Math.pow(1 - t, 4),
+    });
+  } else {
+    const top = el.getBoundingClientRect().top + window.scrollY + offset;
+    window.scrollTo({ top, behavior: reduced ? "auto" : "smooth" });
+  }
+}
+
+export function scrollToTop() {
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (lenisInstance && !reduced) {
+    lenisInstance.scrollTo(0, { duration: 1.1, easing: (t: number) => 1 - Math.pow(1 - t, 4) });
+  } else {
+    window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Parallax — element drifts against scroll with a lerped rAF loop.
+   speed > 0 moves slower than the page (background feel), < 0 faster.
+   ─────────────────────────────────────────────────────────────────────────── */
+export function Parallax({
+  children,
+  speed = 0.14,
+  className = "",
+}: {
+  children: ReactNode;
+  speed?: number;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0;
+    let current = 0;
+    let running = true;
+    const io = new IntersectionObserver(([e]) => { running = e.isIntersecting; });
+    io.observe(el);
+    const tick = () => {
+      if (running) {
+        const r = el.getBoundingClientRect();
+        const center = r.top + r.height / 2 - window.innerHeight / 2;
+        const target = -center * speed;
+        current += (target - current) * 0.09;
+        el.style.transform = `translate3d(0, ${current.toFixed(2)}px, 0)`;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+    };
+  }, [speed]);
+
+  return (
+    <div ref={ref} className={`fx-parallax ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   WordReveal — headline text rises word by word with a blur-out, once in view.
+   ─────────────────────────────────────────────────────────────────────────── */
+export function WordReveal({
+  text,
+  d = 0,
+  className = "",
+}: {
+  text: string;
+  d?: number;
+  className?: string;
+}) {
+  const [ref, visible] = useInView<HTMLSpanElement>(0.3);
+  const words = text.split(" ");
+  return (
+    <span ref={ref} className={`fx-words ${visible ? "is-in" : ""} ${className}`}>
+      {words.map((w, i) => (
+        // the space must live OUTSIDE the inline-block clip span — a trailing
+        // space inside it is collapsed by the browser and the words run together
+        <span key={i}>
+          <span className="fx-word-clip">
+            <span className="fx-word" style={{ transitionDelay: `${d * 90 + i * 50}ms` }}>
+              {w}
+            </span>
+          </span>
+          {i < words.length - 1 ? " " : ""}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 /* ───────────────────────────────────────────────────────────────────────────
    useInView — returns [ref, visible] once the element enters the viewport
@@ -226,9 +364,11 @@ export function WordCycle({ words, interval = 2400 }: { words: string[]; interva
     return () => clearInterval(id);
   }, [words.length, interval]);
   return (
-    <span className="fx-wordcycle" aria-live="polite">
+    <span className="fx-wordcycle">
+      {/* screen readers get one stable word; the rotation is decorative */}
+      <span className="sr-only">{words[0]}</span>
       {words.map((w, idx) => (
-        <span key={w} className={`fx-wordcycle-word ${idx === i ? "is-on" : ""}`}>
+        <span key={w} aria-hidden className={`fx-wordcycle-word ${idx === i ? "is-on" : ""}`}>
           {w}
         </span>
       ))}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Reveal, Counter, Chapter } from "./_fx";
+import { useState, useEffect, useRef } from "react";
+import { Reveal, Counter, Chapter } from "./fx";
 
 /* ───────────────────────────────────────────────────────────────────────────
    InvestorStory — the six-slide deck rebuilt as a scroll narrative with
@@ -266,6 +266,8 @@ function Lightbox({ screens, activeIndex, onClose, onPrev, onNext }: {
   screens: typeof ALL_SCREENS; activeIndex: number;
   onClose: () => void; onPrev: () => void; onNext: () => void;
 }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -276,11 +278,24 @@ function Lightbox({ screens, activeIndex, onClose, onPrev, onNext }: {
     return () => window.removeEventListener("keydown", fn);
   }, [onClose, onPrev, onNext]);
 
+  /* modal basics: lock page scroll (also stops Lenis, which drives native
+     scroll), move focus in on open and back to the trigger on close */
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    const prevFocus = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      prevFocus?.focus?.();
+    };
+  }, []);
+
   const s = screens[activeIndex];
   return (
-    <div className="lb" onClick={onClose} role="dialog" aria-modal>
+    <div className="lb" onClick={onClose} role="dialog" aria-modal data-lenis-prevent>
       <div className="lb-inner" onClick={(e) => e.stopPropagation()}>
-        <button className="lb-close" onClick={onClose} aria-label="Close">✕</button>
+        <button ref={closeRef} className="lb-close" onClick={onClose} aria-label="Close">✕</button>
         <button className="lb-nav lb-nav--prev" onClick={onPrev} aria-label="Previous">‹</button>
         <img src={s.src} alt={s.label} className={`lb-img ${s.type === "Vendor" ? "lb-img--wide" : ""}`} />
         <button className="lb-nav lb-nav--next" onClick={onNext} aria-label="Next">›</button>

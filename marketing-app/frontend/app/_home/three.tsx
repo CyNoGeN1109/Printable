@@ -21,6 +21,37 @@ const smooth = (v: number) => v * v * (3 - 2 * v);
 
 type RefLike = { current: number };
 
+/* Render only while the canvas is near the viewport — keeps the main thread
+   free for scrolling and saves battery on long pages. */
+function useInViewFrameloop<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [active, setActive] = useState(true);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => setActive(e.isIntersecting),
+      { rootMargin: "160px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return [ref, active] as const;
+}
+
+/* One media-query read per mount; camera shake/parallax honor this. */
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const fn = () => setReduced(mq.matches);
+    fn();
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
+  return reduced;
+}
+
 function useSRGB(path: string) {
   const tex = useTexture(path);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -1019,13 +1050,17 @@ function Lights({ size = 8 }: { size?: number }) {
 
 const DESK_BOUNDS: [number, number, number, number] = [-2.3, 2.3, -0.5, 0.72];
 
-function HeroDeskScene({ shift = 0 }: { shift?: number }) {
+function HeroDeskScene({ shift = 0, still = false }: { shift?: number; still?: boolean }) {
   const look = useMemo(() => new THREE.Vector3(shift, 1.05, 0), [shift]);
   const printerRef = useRef<THREE.Group>(null);
-  useFrame(({ camera, pointer }) => {
+  useFrame(({ camera, pointer }, dt) => {
     if (dragState.active) return;
-    camera.position.x = THREE.MathUtils.lerp(camera.position.x, shift + pointer.x * 0.4, 0.05);
-    camera.position.y = THREE.MathUtils.lerp(camera.position.y, 2.0 - pointer.y * 0.25, 0.05);
+    // frame-rate-independent damping so the drift feels identical at 30 or 144 fps
+    const k = still ? 1 : 1 - Math.exp(-dt * 3.2);
+    const tx = still ? shift : shift + pointer.x * 0.4;
+    const ty = still ? 2.0 : 2.0 - pointer.y * 0.25;
+    camera.position.x = THREE.MathUtils.lerp(camera.position.x, tx, k);
+    camera.position.y = THREE.MathUtils.lerp(camera.position.y, ty, k);
     camera.lookAt(look);
   });
 
@@ -1059,6 +1094,8 @@ function HeroDeskScene({ shift = 0 }: { shift?: number }) {
 
 export function Hero3D() {
   const [narrow, setNarrow] = useState(false);
+  const [wrapRef, active] = useInViewFrameloop<HTMLDivElement>();
+  const reduced = usePrefersReducedMotion();
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 920px)");
     const fn = () => setNarrow(mq.matches);
@@ -1067,16 +1104,17 @@ export function Hero3D() {
     return () => mq.removeEventListener("change", fn);
   }, []);
   return (
-    <div className="hero-canvas">
+    <div className="hero-canvas" ref={wrapRef}>
       <Canvas
         shadows
         dpr={[1, 1.5]}
+        frameloop={active ? "always" : "never"}
         camera={{ fov: narrow ? 42 : 33, position: [0, 2.0, narrow ? 7.0 : 5.9] }}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       >
         <Lights size={7} />
         <Suspense fallback={null}>
-          <HeroDeskScene />
+          <HeroDeskScene still={reduced} />
         </Suspense>
       </Canvas>
       <div className="hero-canvas-hint" aria-hidden>
@@ -1309,7 +1347,7 @@ function DoneRing({ progressRef }: { progressRef: RefLike }) {
   );
 }
 
-function StoryScene({ progressRef }: { progressRef: RefLike }) {
+function StoryScene({ progressRef, still = false }: { progressRef: RefLike; still?: boolean }) {
   const smoothP = useRef(0);
   const sheetK = useRef(0);
   const damped: RefLike = smoothP;
@@ -1332,9 +1370,11 @@ function StoryScene({ progressRef }: { progressRef: RefLike }) {
       THREE.MathUtils.lerp(a.look[2], b.look[2], f)
     );
     // handheld micro-motion (applied after aiming so it doesn't re-aim)
-    const e = clock.elapsedTime;
-    camera.position.x += Math.sin(e * 1.1) * 0.01;
-    camera.position.y += Math.sin(e * 1.7 + 1) * 0.008;
+    if (!still) {
+      const e = clock.elapsedTime;
+      camera.position.x += Math.sin(e * 1.1) * 0.01;
+      camera.position.y += Math.sin(e * 1.7 + 1) * 0.008;
+    }
     sheetK.current = smooth(clamp01((t - 4.3) / 0.55));
   });
 
@@ -1368,9 +1408,11 @@ function StoryScene({ progressRef }: { progressRef: RefLike }) {
 }
 
 export function FlowStory3D() {
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLElement>(null);
   const progressRef = useRef(0);
   const [stage, setStage] = useState(0);
+  const [active, setActive] = useState(true);
+  const reduced = usePrefersReducedMotion();
 
   useEffect(() => {
     let raf = 0;
@@ -1395,6 +1437,15 @@ export function FlowStory3D() {
     };
   }, []);
 
+  /* only run the render loop while the story section is on screen */
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setActive(e.isIntersecting), { rootMargin: "160px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   return (
     <section id="flow" className="fs" ref={wrapRef}>
       <div className="fs-sticky">
@@ -1402,12 +1453,13 @@ export function FlowStory3D() {
           <Canvas
             shadows
             dpr={[1, 1.5]}
+            frameloop={active ? "always" : "never"}
             camera={{ fov: 40, position: [-4.9, 1.7, 3.6] }}
             gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
           >
             <Lights size={9} />
             <Suspense fallback={null}>
-              <StoryScene progressRef={progressRef} />
+              <StoryScene progressRef={progressRef} still={reduced} />
             </Suspense>
           </Canvas>
         </div>

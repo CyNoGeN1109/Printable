@@ -158,7 +158,10 @@ orderRouter.get("/:id", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid order ID format" });
       return;
     }
-    const order = await getOrderById(raw);
+    // Authenticated shops (desktop app) need the full order incl. file URLs to
+    // print; anonymous tracking callers get the public projection.
+    const callerShopId = await shopIdFromKey(req);
+    const order = await getOrderById(raw, { includePrivate: Boolean(callerShopId) });
     if (!order) {
       res.status(404).json({ error: "Order not found" });
       return;

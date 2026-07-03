@@ -156,8 +156,21 @@ export async function createOrder(
 
 // ─── Get Single Order ──────────────────────────────────────────────────────────
 
-export async function getOrderById(orderId: string): Promise<IOrder | null> {
-  return Order.findOne({ orderId: orderId.toUpperCase() }).lean<IOrder>();
+// These two feed the PUBLIC tracking endpoints (anyone with the short order ID
+// can call them), so sensitive fields never leave the server: the customer's
+// WhatsApp number, Razorpay ids, and the raw storage URLs of the documents.
+// The tracking UI only needs status/paymentMode/names/amounts.
+const PUBLIC_ORDER_PROJECTION = "-whatsappFrom -razorpayOrderId -razorpayPaymentId -files.fileUrl -__v";
+
+// includePrivate=true is for authenticated shop (desktop) callers, which need
+// files.fileUrl to download and print the job.
+export async function getOrderById(
+  orderId: string,
+  opts?: { includePrivate?: boolean }
+): Promise<IOrder | null> {
+  const query = Order.findOne({ orderId: orderId.toUpperCase() });
+  if (!opts?.includePrivate) query.select(PUBLIC_ORDER_PROJECTION);
+  return query.lean<IOrder>();
 }
 
 // ─── Get all orders in a group (split B&W + colour, or a single order) ───────────
@@ -167,6 +180,7 @@ export async function getOrdersByGroup(idOrGroupId: string): Promise<IOrder[]> {
   // Match by groupId (split siblings) or orderId (non-split / older orders).
   return Order.find({ $or: [{ groupId: v }, { orderId: v }] })
     .sort({ orderId: 1 }) // base id sorts before "<base>-COLOUR", so B&W comes first
+    .select(PUBLIC_ORDER_PROJECTION)
     .lean<IOrder[]>();
 }
 
