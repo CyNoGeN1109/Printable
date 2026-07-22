@@ -285,6 +285,40 @@ export function Marquee({
   items: string[];
   reverse?: boolean;
 }) {
+  const track = useRef<HTMLDivElement>(null);
+  const x = useRef(0);
+  const vel = useRef(1);
+  const target = useRef(1);
+  const half = useRef(0);
+
+  /* rAF-driven so hover eases the speed down instead of hard-pausing */
+  useEffect(() => {
+    const el = track.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const measure = () => { half.current = el.scrollWidth / 2; };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    let raf = 0;
+    let last = performance.now();
+    const loop = (t: number) => {
+      const dt = Math.min(64, t - last) / 1000;
+      last = t;
+      vel.current += (target.current - vel.current) * Math.min(1, dt * 5);
+      x.current -= vel.current * 64 * dt * (reverse ? -1 : 1);
+      const h = half.current;
+      if (h > 0) {
+        if (x.current <= -h) x.current += h;
+        if (x.current > 0) x.current -= h;
+      }
+      el.style.transform = `translate3d(${x.current}px,0,0)`;
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, [reverse]);
+
   const row = (key: string, hidden: boolean) => (
     <div className="fx-marquee-row" aria-hidden={hidden} key={key}>
       {items.map((it, i) => (
@@ -296,8 +330,12 @@ export function Marquee({
     </div>
   );
   return (
-    <div className={`fx-marquee ${reverse ? "fx-marquee--reverse" : ""}`}>
-      <div className="fx-marquee-track">
+    <div
+      className={`fx-marquee ${reverse ? "fx-marquee--reverse" : ""}`}
+      onMouseEnter={() => { target.current = 0.12; }}
+      onMouseLeave={() => { target.current = 1; }}
+    >
+      <div className="fx-marquee-track fx-marquee-track--js" ref={track}>
         {row("a", false)}
         {row("b", true)}
       </div>

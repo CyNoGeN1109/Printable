@@ -3604,3 +3604,253 @@ html.lenis, html.lenis body { height: auto; }
    not through, the card text */
 .priv-node { background: rgba(14, 36, 21, 0.94); z-index: 1; }
 .priv-node:hover { background: rgba(21, 50, 31, 0.96); }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   POLISH PASS — hero overlay fold, intro poster, band fades, motion variety,
+   morphing nav underline, featured pricing, icon system helpers
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── #1 Hero: copy overlays the 3D so the message is above the fold ── */
+.hero { justify-content: center; padding: 6.5rem 0 3.5rem; }
+.hero-canvas {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  min-height: 0;
+}
+.hero-canvas::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(247, 250, 245, 0.94) 0%, rgba(247, 250, 245, 0.62) 30%, rgba(247, 250, 245, 0) 56%);
+}
+.hero-layout {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  align-items: flex-start;
+  text-align: left;
+}
+.hero-copy { align-items: flex-start; max-width: 640px; }
+.hero-title { text-wrap: balance; }
+.hero-sub { max-width: 520px; }
+.hero-actions { justify-content: flex-start; }
+.hero-trust { justify-content: flex-start; }
+.hero-right { justify-content: flex-start; margin-top: 1.4rem; }
+.hero-canvas-hint { bottom: 4.6rem; }
+
+/* ── #2 Hero poster: skeleton until WebGL paints, then fades ── */
+.hero-poster {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, #eef6ea 0%, #f4f9f2 100%);
+  transition: opacity 0.9s var(--ease);
+}
+.hero-poster-blob {
+  position: absolute;
+  right: 12%;
+  top: 50%;
+  width: 46%;
+  max-width: 620px;
+  aspect-ratio: 16 / 9;
+  transform: translateY(-52%);
+  border-radius: 32px;
+  background: linear-gradient(100deg, rgba(22, 163, 74, 0.10) 30%, rgba(47, 219, 110, 0.22) 50%, rgba(22, 163, 74, 0.10) 70%);
+  background-size: 220% 100%;
+  filter: blur(26px);
+  animation: poster-shimmer 1.6s linear infinite;
+}
+@keyframes poster-shimmer {
+  from { background-position: 130% 0; }
+  to   { background-position: -60% 0; }
+}
+.hero-poster.is-hidden { opacity: 0; }
+
+/* ── #4 Soft gradient hand-offs into and out of the dark bands ── */
+.sec--ink, .vp, .cta { position: relative; overflow: visible; }
+.sec--ink::before {
+  display: block;
+  content: "";
+  position: absolute;
+  top: -96px;
+  left: 0; right: 0;
+  height: 96px;
+  background: linear-gradient(180deg, rgba(8, 26, 14, 0) 0%, #081a0e 100%);
+  pointer-events: none;
+}
+.sec--ink::after {
+  content: "";
+  position: absolute;
+  bottom: -96px;
+  left: 0; right: 0;
+  height: 96px;
+  background: linear-gradient(180deg, #08200f 0%, rgba(8, 32, 15, 0) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+.vp::before, .cta::before {
+  content: "";
+  position: absolute;
+  top: -96px;
+  left: 0; right: 0;
+  height: 96px;
+  background: linear-gradient(180deg, rgba(11, 36, 19, 0) 0%, var(--forest) 100%);
+  pointer-events: none;
+}
+.vp::after {
+  content: "";
+  position: absolute;
+  bottom: -96px;
+  left: 0; right: 0;
+  height: 96px;
+  background: linear-gradient(180deg, var(--forest) 0%, rgba(11, 36, 19, 0) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── #6 Chapter titles: cinematic clip reveal instead of plain fade ── */
+.fx-reveal .chapter-title {
+  clip-path: inset(0 0 102% 0);
+  transform: translateY(26px);
+  transition: clip-path 0.95s var(--ease) 0.05s, transform 0.95s var(--ease) 0.05s;
+}
+.fx-reveal.is-in .chapter-title {
+  clip-path: inset(-10% -4% -14% -4%);
+  transform: none;
+}
+
+/* ── #8 Morphing nav underline ── */
+.nav-links { position: relative; }
+.nav-underline {
+  position: absolute;
+  bottom: 1px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent-2), var(--bright));
+  transition: left 0.4s var(--ease), width 0.4s var(--ease), opacity 0.3s;
+  pointer-events: none;
+}
+.nav-link.is-active::after { display: none; }
+
+/* ── #9 Featured pricing card ── */
+.price-card { position: relative; }
+.price-card--featured {
+  border-color: rgba(22, 163, 74, 0.55);
+  background: linear-gradient(180deg, #f1fbf2, #ffffff 55%);
+  box-shadow: 0 20px 48px rgba(14, 48, 28, 0.16);
+  transform: scale(1.045);
+  z-index: 1;
+}
+.price-flag {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px rgba(12, 131, 31, 0.35);
+}
+
+/* ── #10 JS marquee track (velocity ramp handles the motion now) ── */
+.fx-marquee-track--js { animation: none !important; width: max-content; }
+
+/* ── #11 FAQ chevron: springy rotate ── */
+.faq-chevron .icn {
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.faq-item.is-open .faq-chevron .icn { transform: rotate(180deg); }
+
+/* ── #3 Icon system sizing / colours per context ── */
+.icn { display: block; flex: none; }
+.trust-icon { display: inline-flex; color: var(--accent); }
+.prob-icon { color: var(--amber-deep, #d9660d); }
+.feat-icon { color: var(--chip-c, var(--accent)); }
+.step-icon { color: var(--indigo, #4f46e5); }
+.tech-icon { color: var(--accent); }
+.partner-step-icon { color: var(--accent); display: inline-flex; }
+.price-icon { color: var(--accent); display: inline-flex; justify-content: center; width: 100%; }
+.priv-node-icon { color: var(--bright); display: inline-flex; }
+.trk-node .icn, .vos-stage-icon .icn { display: block; margin: 0 auto; }
+.trk-part .icn { display: inline-block; vertical-align: -2px; margin-right: 5px; color: var(--accent); }
+.faq-chevron { display: inline-flex; align-items: center; justify-content: center; }
+
+/* ── Mobile: hero stacks again, scrim off ── */
+@media (max-width: 920px) {
+  .hero { padding-top: 5.5rem; }
+  .hero-canvas {
+    position: relative;
+    height: 340px;
+    min-height: 340px;
+    margin-bottom: 1rem;
+  }
+  .hero-canvas::after { display: none; }
+  .hero-poster-blob { right: 50%; transform: translate(50%, -52%); width: 80%; }
+  .hero-layout { align-items: center; text-align: center; }
+  .hero-copy { align-items: center; }
+  .hero-actions, .hero-trust, .hero-right { justify-content: center; }
+  .sec--ink::before, .sec--ink::after, .vp::before, .vp::after, .cta::before { height: 56px; top: auto; }
+  .sec--ink::before, .vp::before, .cta::before { top: -56px; }
+  .sec--ink::after, .vp::after { bottom: -56px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-poster-blob { animation: none; }
+  .fx-reveal .chapter-title { clip-path: none; transform: none; transition: none; }
+  .nav-underline { transition: none; }
+}
+
+/* ── Honest pricing statement (replaces the rate cards) ── */
+.price-honest {
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid rgba(22, 163, 74, 0.3);
+  border-radius: 24px;
+  padding: 2.6rem 2.8rem;
+  box-shadow: var(--shadow-sm);
+}
+.price-honest-line {
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 2.2vw, 1.5rem);
+  font-weight: 600;
+  color: var(--heading);
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+.price-honest-sub {
+  color: var(--muted);
+  font-size: 1rem;
+  max-width: 640px;
+  margin: 0 auto 1.6rem;
+}
+.price-honest-points {
+  display: flex;
+  gap: 0.8rem 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.price-honest-points span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ── Two-founder team grid: keep the cards centred ── */
+.team-grid {
+  grid-template-columns: repeat(auto-fit, 260px);
+  justify-content: center;
+}

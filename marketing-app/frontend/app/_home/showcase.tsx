@@ -130,22 +130,16 @@ export function InvestorStory() {
             </div>
             <div className="bento-glow" />
           </Reveal>
-
           <Reveal variant="up" d={2} className="bento-item bento-traction">
             <div className="bento-content">
-              <span className="bento-kicker">Traction</span>
-              <h3 className="bento-title">Live & Scaling</h3>
-              <p className="bento-desc">Proven product-market fit with live campus pilots.</p>
-              <div className="bento-metrics">
-                <div className="bento-stat">
-                  <h4><Counter to={10} suffix="K+" /></h4>
-                  <p>Users</p>
-                </div>
-                <div className="bento-stat">
-                  <h4><Counter to={500} suffix="K+" /></h4>
-                  <p>Prints</p>
-                </div>
-              </div>
+              <span className="bento-kicker">Status</span>
+              <h3 className="bento-title">Built & Running</h3>
+              <p className="bento-desc">Not a deck-stage idea — the full stack is shipped.</p>
+              <ul className="bento-list">
+                <li>✓ Customer web app live</li>
+                <li>✓ Vendor desktop OS in shops</li>
+                <li>✓ WhatsApp ordering operational</li>
+              </ul>
             </div>
             <div className="bento-glow" />
           </Reveal>

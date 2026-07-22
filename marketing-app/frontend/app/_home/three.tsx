@@ -953,36 +953,48 @@ function Cable({ from, to, lift = 0.35 }: {
   );
 }
 
-function DynamicCable({ from, targetRef, offset = [0, 0, 0], lift = 0.35 }: {
-  from: [number, number, number];
+function DynamicCable({ from, fromRef, fromOffset = [0, 0, 0], targetRef, offset = [0, 0, 0], lift = 0.35 }: {
+  from?: [number, number, number];
+  fromRef?: React.RefObject<THREE.Group | null>;
+  fromOffset?: [number, number, number];
   targetRef: React.RefObject<THREE.Group | null>;
   offset?: [number, number, number];
   lift?: number;
 }) {
   const mesh = useRef<THREE.Mesh>(null);
-  const a = useMemo(() => new THREE.Vector3(...from), [from]);
-  const last = useRef(new THREE.Vector3(Infinity, Infinity, Infinity));
-  const tmp = useMemo(() => new THREE.Vector3(), []);
+  const staticA = useMemo(() => new THREE.Vector3(...(from ?? [0, 0, 0])), [from]);
+  const lastA = useRef(new THREE.Vector3(Infinity, Infinity, Infinity));
+  const lastB = useRef(new THREE.Vector3(Infinity, Infinity, Infinity));
+  const a = useMemo(() => new THREE.Vector3(), []);
+  const b = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(() => {
     const target = targetRef.current;
     const m = mesh.current;
     if (!target || !m || !m.parent) return;
-    target.getWorldPosition(tmp);
-    m.parent.worldToLocal(tmp);
-    tmp.x += offset[0];
-    tmp.y += offset[1];
-    tmp.z += offset[2];
-    if (tmp.distanceTo(last.current) < 0.015) return;
-    last.current.copy(tmp);
-    const g = new THREE.TubeGeometry(makeCableCurve(a, tmp.clone(), lift), 32, 0.014, 8);
+    // end B — the printer (or whatever it's plugged into)
+    target.getWorldPosition(b);
+    m.parent.worldToLocal(b);
+    b.x += offset[0]; b.y += offset[1]; b.z += offset[2];
+    // end A — a fixed point, or another draggable (the tower)
+    if (fromRef?.current) {
+      fromRef.current.getWorldPosition(a);
+      m.parent.worldToLocal(a);
+      a.x += fromOffset[0]; a.y += fromOffset[1]; a.z += fromOffset[2];
+    } else {
+      a.copy(staticA);
+    }
+    if (a.distanceTo(lastA.current) < 0.015 && b.distanceTo(lastB.current) < 0.015) return;
+    lastA.current.copy(a);
+    lastB.current.copy(b);
+    const g = new THREE.TubeGeometry(makeCableCurve(a.clone(), b.clone(), lift), 32, 0.014, 8);
     m.geometry.dispose();
     m.geometry = g;
   });
 
   return (
     <mesh ref={mesh}>
-      <tubeGeometry args={[makeCableCurve(a, a.clone(), lift), 4, 0.014, 8]} />
+      <tubeGeometry args={[makeCableCurve(staticA, staticA.clone(), lift), 4, 0.014, 8]} />
       <meshStandardMaterial color="#2c3336" roughness={0.6} />
     </mesh>
   );
@@ -1050,28 +1062,42 @@ function Lights({ size = 8 }: { size?: number }) {
 
 const DESK_BOUNDS: [number, number, number, number] = [-2.3, 2.3, -0.5, 0.72];
 
-function HeroDeskScene({ shift = 0, still = false }: { shift?: number; still?: boolean }) {
-  const look = useMemo(() => new THREE.Vector3(shift, 1.05, 0), [shift]);
+function HeroDeskScene({ aimX = 0, still = false, baseZ = 5.9 }: { aimX?: number; still?: boolean; baseZ?: number }) {
+  /* aiming left of the desk pushes the workstation to the right half of the
+     screen, keeping the overlaid headline clear */
+  const look = useMemo(() => new THREE.Vector3(aimX, 1.05, 0), [aimX]);
   const printerRef = useRef<THREE.Group>(null);
+  const towerRef = useRef<THREE.Group>(null);
+  const monitorRef = useRef<THREE.Group>(null);
+  const intro = useRef(still ? 1 : 0); // 0→1 cinematic swoop on load
   useFrame(({ camera, pointer }, dt) => {
     if (dragState.active) return;
+    intro.current = Math.min(1, intro.current + dt / 1.9);
+    const e = 1 - Math.pow(1 - intro.current, 3);
+    const far = 1 - e; // extra distance while the intro plays
     // frame-rate-independent damping so the drift feels identical at 30 or 144 fps
     const k = still ? 1 : 1 - Math.exp(-dt * 3.2);
-    const tx = still ? shift : shift + pointer.x * 0.4;
-    const ty = still ? 2.0 : 2.0 - pointer.y * 0.25;
+    const tx = (still ? aimX : aimX + pointer.x * 0.4) + 2.6 * far;
+    const ty = (still ? 2.0 : 2.0 - pointer.y * 0.25) + 1.5 * far;
     camera.position.x = THREE.MathUtils.lerp(camera.position.x, tx, k);
     camera.position.y = THREE.MathUtils.lerp(camera.position.y, ty, k);
+    camera.position.z = baseZ + 4.4 * far;
     camera.lookAt(look);
   });
 
   return (
-    <group position={[shift, 0, 0]}>
+    <group>
       <Desk />
       <group position={[0, 0.76, 0]}>
-        <Monitor src="/screenshots/screen-11.png" position={[0.1, 0, -0.5]} />
+        {/* everything on the desk is grabbable — monitor, CPU, printer, QR, the lot */}
+        <Draggable bounds={[-1.6, 1.6, -0.55, 0.1]} position={[0.1, 0, -0.5]} forwardRef={monitorRef}>
+          <Monitor src="/screenshots/screen-11.png" />
+        </Draggable>
         <Speaker position={[-1.35, 0, -0.58]} rotation={[0, 0.3, 0]} />
         <Speaker position={[1.5, 0, -0.58]} rotation={[0, -0.3, 0]} />
-        <Tower position={[2.1, 0, -0.15]} />
+        <Draggable bounds={[-2.3, 2.3, -0.4, 0.3]} position={[2.1, 0, -0.15]} forwardRef={towerRef}>
+          <Tower />
+        </Draggable>
         <Draggable bounds={DESK_BOUNDS} position={[0.05, 0.035, 0.42]} rotation={[0, 0.02, 0]}>
           <Keyboard />
         </Draggable>
@@ -1081,12 +1107,20 @@ function HeroDeskScene({ shift = 0, still = false }: { shift?: number; still?: b
         <Draggable bounds={DESK_BOUNDS} position={[-0.85, 0.035, 0.55]}>
           <Phone lying src="/screenshots/screen-01.png" scale={0.5} />
         </Draggable>
-        <QRStandee position={[-1.25, 0, 0.45]} rotation={[0, 0.5, 0]} />
+        <Draggable bounds={DESK_BOUNDS} position={[-1.25, 0, 0.45]} rotation={[0, 0.5, 0]}>
+          <QRStandee />
+        </Draggable>
         <Draggable bounds={[-2.25, 2.25, -0.45, 0.55]} position={[-1.95, 0, -0.12]} forwardRef={printerRef}>
           <Printer loop />
         </Draggable>
       </group>
-      <DynamicCable from={[1.82, 0.95, -0.5]} targetRef={printerRef} offset={[0.15, 0.15, -0.38]} lift={0.45} />
+      <DynamicCable
+        fromRef={towerRef}
+        fromOffset={[-0.28, 0.19, -0.35]}
+        targetRef={printerRef}
+        offset={[0.15, 0.15, -0.38]}
+        lift={0.45}
+      />
       <ShadowFloor radius={7} x={0} />
     </group>
   );
@@ -1094,6 +1128,7 @@ function HeroDeskScene({ shift = 0, still = false }: { shift?: number; still?: b
 
 export function Hero3D() {
   const [narrow, setNarrow] = useState(false);
+  const [ready, setReady] = useState(false);
   const [wrapRef, active] = useInViewFrameloop<HTMLDivElement>();
   const reduced = usePrefersReducedMotion();
   useEffect(() => {
@@ -1103,22 +1138,29 @@ export function Hero3D() {
     mq.addEventListener("change", fn);
     return () => mq.removeEventListener("change", fn);
   }, []);
+  const aimX = narrow ? 0 : -1.6;
+  const baseZ = narrow ? 7.2 : 6.2;
   return (
     <div className="hero-canvas" ref={wrapRef}>
       <Canvas
         shadows
         dpr={[1, 1.5]}
         frameloop={active ? "always" : "never"}
-        camera={{ fov: narrow ? 42 : 33, position: [0, 2.0, narrow ? 7.0 : 5.9] }}
+        camera={{ fov: narrow ? 42 : 33, position: [aimX + 2.6, 3.5, baseZ + 4.4] }}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+        onCreated={() => setTimeout(() => setReady(true), 120)}
       >
         <Lights size={7} />
         <Suspense fallback={null}>
-          <HeroDeskScene still={reduced} />
+          <HeroDeskScene still={reduced} aimX={aimX} baseZ={baseZ} />
         </Suspense>
       </Canvas>
+      {/* skeleton poster shown until WebGL paints, then fades away */}
+      <div className={`hero-poster ${ready ? "is-hidden" : ""}`} aria-hidden>
+        <span className="hero-poster-blob" />
+      </div>
       <div className="hero-canvas-hint" aria-hidden>
-        🖱️ Try it — drag the printer, keyboard or mouse
+        🖱️ Try it — everything on the desk is movable
       </div>
     </div>
   );

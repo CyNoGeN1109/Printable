@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { InvestorStory, GallerySection } from "./showcase";
 import {
@@ -7,6 +7,7 @@ import {
   MagneticButton, ParticleField, HeroEntrance, GlowCard,
   SmoothScroll, scrollToId, scrollToTop, WordReveal, Parallax,
 } from "./fx";
+import { Icon } from "./icons";
 
 const Hero3D = dynamic(() => import("./three").then((m) => m.Hero3D), { ssr: false });
 const FlowStory3D = dynamic(() => import("./three").then((m) => m.FlowStory3D), { ssr: false });
@@ -122,31 +123,25 @@ const VIDEOS = [
 
 const TEAM = [
   { name: "Darsh Dave", role: "Founder & CEO", emoji: "🚀", isFounder: true },
-  { name: "Soham Kulkarni", role: "COO & Co-Founder", emoji: "📊" },
-  { name: "Shashank", role: "CFO & Co-Founder", emoji: "💰" },
-  { name: "Abhay Jadon", role: "CTO & Co-Founder", emoji: "⚙️" },
-  { name: "MD. Kaif Siddique", role: "CMO & Co-Founder", emoji: "📣" },
-  { name: "Shashank Agarwal", role: "System Engineer & Co-Founder", emoji: "🖥️" },
-  { name: "Anish Kumar", role: "Software Developer & Co-Founder", emoji: "🎨" },
-  { name: "Aayush Sharma", role: "Software Developer & Co-Founder", emoji: "💻" },
+  { name: "Soham Kulkarni", role: "Co-Founder & COO", emoji: "📊" },
 ];
 
 const PROBLEMS = [
-  { icon: "⏳", stat: "30+ min", title: "Long Queues", desc: "Standing in line for 30+ minutes just to hand over a USB drive." },
-  { icon: "📂", stat: "USB · chat · email", title: "File Transfer Chaos", desc: "WhatsApp-ing files, USB drives, email attachments — all error-prone and slow." },
-  { icon: "💬", stat: "shouted settings", title: "Manual Negotiation", desc: "Explaining print settings verbally leads to mistakes and reprints." },
-  { icon: "💸", stat: "no price list", title: "Opaque Pricing", desc: "No clear pricing upfront — customers often overpay or get surprised." },
+  { icon: "clock", stat: "30+ min", title: "Long Queues", desc: "Standing in line for 30+ minutes just to hand over a USB drive." },
+  { icon: "folder", stat: "USB · chat · email", title: "File Transfer Chaos", desc: "WhatsApp-ing files, USB drives, email attachments — all error-prone and slow." },
+  { icon: "message", stat: "shouted settings", title: "Manual Negotiation", desc: "Explaining print settings verbally leads to mistakes and reprints." },
+  { icon: "banknote", stat: "no price list", title: "Opaque Pricing", desc: "No clear pricing upfront — customers often overpay or get surprised." },
 ];
 
 const FEATURES = [
-  { icon: "🔒", title: "Private by Architecture", desc: "Files upload straight to encrypted cloud storage, print automatically, and are wiped the moment the job completes — abandoned uploads are swept within hours. No person ever opens your document." },
-  { icon: "🔳", title: "QR-Based Entry", desc: "Each shop gets a unique QR code — no app download required, works in any browser. No account, no OTP, just your name." },
-  { icon: "📑", title: "Live Preview", desc: "Page-by-page preview before you pay — pick B&W and watch it turn grayscale, pick landscape and watch it rotate. What you see is what prints." },
-  { icon: "⚙️", title: "Smart Print Config", desc: "Copies (1–50), exact page ranges like “1-3, 5”, colour or B&W, single or double-sided, portrait or landscape — per file, even in multi-file orders." },
-  { icon: "💰", title: "Live Pricing", desc: "The price updates as you toggle options — with automatic bulk rates past 100 pages and a double-sided discount. The backend recalculates independently, so the shown price is the charged price." },
-  { icon: "🔔", title: "Live Order Tracking", desc: "A short order code like ABC123 and a food-delivery-style tracker: Order placed → Printing → Ready, auto-refreshing every 15 seconds." },
-  { icon: "📊", title: "Vendor OS", desc: "Print partners run a full desktop operating system for their shop — order queue, printer health, toner levels, revenue reports, staff shifts." },
-  { icon: "💳", title: "Cash & Online", desc: "Pay cash at the counter (confirmed by the shop in one keystroke) or online via Razorpay UPI when the shop enables it — webhook-verified before printing." },
+  { icon: "lock", title: "Private by Architecture", desc: "Files upload straight to encrypted cloud storage, print automatically, and are wiped the moment the job completes — abandoned uploads are swept within hours. No person ever opens your document." },
+  { icon: "qr", title: "QR-Based Entry", desc: "Each shop gets a unique QR code — no app download required, works in any browser. No account, no OTP, just your name." },
+  { icon: "eye", title: "Live Preview", desc: "Page-by-page preview before you pay — pick B&W and watch it turn grayscale, pick landscape and watch it rotate. What you see is what prints." },
+  { icon: "sliders", title: "Smart Print Config", desc: "Copies (1–50), exact page ranges like “1-3, 5”, colour or B&W, single or double-sided, portrait or landscape — per file, even in multi-file orders." },
+  { icon: "rupee", title: "Live Pricing", desc: "The price updates as you toggle options — with automatic bulk rates past 100 pages and a double-sided discount. The backend recalculates independently, so the shown price is the charged price." },
+  { icon: "bell", title: "Live Order Tracking", desc: "A short order code like ABC123 and a food-delivery-style tracker: Order placed → Printing → Ready, auto-refreshing every 15 seconds." },
+  { icon: "monitor", title: "Vendor OS", desc: "Print partners run a full desktop operating system for their shop — order queue, printer health, toner levels, revenue reports, staff shifts." },
+  { icon: "card", title: "Cash & Online", desc: "Pay cash at the counter (confirmed by the shop in one keystroke) or online via Razorpay UPI when the shop enables it — webhook-verified before printing." },
 ];
 
 function Review({ name, tag, avatar, stars, text, type }: (typeof REVIEWS)[0]) {
@@ -173,10 +168,10 @@ function Review({ name, tag, avatar, stars, text, type }: (typeof REVIEWS)[0]) {
    Statuses mirror components/OrderTracker.tsx in the customer app.
    ─────────────────────────────────────────────────────────────────────────── */
 const TRACK_STEPS = [
-  { icon: "🧾", label: "Order placed", sub: "Show ABC123 at the counter to pay" },
-  { icon: "💵", label: "Cash received", sub: "Confirmed by the shop in one tap" },
-  { icon: "🖨️", label: "Printing", sub: "Your job is on the printer right now" },
-  { icon: "✅", label: "Ready", sub: "Ready to collect — enjoy!" },
+  { icon: "receipt", label: "Order placed", sub: "Show ABC123 at the counter to pay" },
+  { icon: "banknote", label: "Cash received", sub: "Confirmed by the shop in one tap" },
+  { icon: "printer", label: "Printing", sub: "Your job is on the printer right now" },
+  { icon: "check", label: "Ready", sub: "Ready to collect — enjoy!" },
 ];
 
 function TrackerDemo() {
@@ -199,7 +194,7 @@ function TrackerDemo() {
         <div className="trk-rail"><div className="trk-rail-fill" style={{ height: `${railPct}%` }} /></div>
         {TRACK_STEPS.map((s, i) => (
           <div key={s.label} className={`trk-step ${i < step ? "is-done" : ""} ${i === step ? "is-active" : ""}`}>
-            <span className="trk-node">{s.icon}</span>
+            <span className="trk-node"><Icon name={s.icon} size={15} strokeWidth={2.4} /></span>
             <div className="trk-body">
               <div className="trk-label">{s.label}</div>
               <div className="trk-sub">{s.sub}</div>
@@ -210,11 +205,11 @@ function TrackerDemo() {
       <div className="trk-parts">
         <span className="trk-parts-title">Prints in 2 parts (different printers)</span>
         <div className="trk-part">
-          <span>🖤 B &amp; W <span style={{ opacity: 0.5, fontFamily: "monospace", fontSize: "0.7rem" }}>#ABC123</span></span>
+          <span><Icon name="contrast" size={13} /> B &amp; W <span style={{ opacity: 0.5, fontFamily: "monospace", fontSize: "0.7rem" }}>#ABC123</span></span>
           <span className={`trk-part-tag ${step >= 3 ? "trk-part-tag--done" : "trk-part-tag--run"}`}>{step >= 3 ? "Ready" : "Printing"}</span>
         </div>
         <div className="trk-part">
-          <span>🎨 Colour <span style={{ opacity: 0.5, fontFamily: "monospace", fontSize: "0.7rem" }}>#ABC123-COLOUR</span></span>
+          <span><Icon name="droplet" size={13} /> Colour <span style={{ opacity: 0.5, fontFamily: "monospace", fontSize: "0.7rem" }}>#ABC123-COLOUR</span></span>
           <span className={`trk-part-tag ${step >= 4 ? "trk-part-tag--done" : "trk-part-tag--run"}`}>{step >= 4 ? "Ready" : "Printing"}</span>
         </div>
       </div>
@@ -228,10 +223,10 @@ function TrackerDemo() {
    (Fetching → Downloading → Printing → Finalizing), looping.
    ─────────────────────────────────────────────────────────────────────────── */
 const VOS_STAGES = [
-  { icon: "📡", name: "Fetching Order", pct: "10%" },
-  { icon: "☁️", name: "Downloading Documents", pct: "35%" },
-  { icon: "🖨️", name: "Physical Printing in Progress", pct: "65–95%" },
-  { icon: "✨", name: "Finalizing", pct: "done" },
+  { icon: "radio", name: "Fetching Order", pct: "10%" },
+  { icon: "cloud", name: "Downloading Documents", pct: "35%" },
+  { icon: "printer", name: "Physical Printing in Progress", pct: "65–95%" },
+  { icon: "sparkles", name: "Finalizing", pct: "done" },
 ];
 
 function VendorConsole() {
@@ -257,7 +252,7 @@ function VendorConsole() {
         <div className="vos-stages">
           {VOS_STAGES.map((s, i) => (
             <div key={s.name} className={`vos-stage ${i === on ? "is-on" : ""}`}>
-              <span className="vos-stage-icon">{s.icon}</span>
+              <span className="vos-stage-icon"><Icon name={s.icon} size={15} strokeWidth={2.2} /></span>
               <span className="vos-stage-name">{s.name}</span>
               <span className="vos-stage-pct">{s.pct}</span>
             </div>
@@ -279,6 +274,22 @@ export default function LandingPage() {
   const [activeSection, setActiveSection] = useState("");
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [showTop, setShowTop] = useState(false);
+  const navLinksRef = useRef<HTMLDivElement>(null);
+  const [navInd, setNavInd] = useState({ left: 0, width: 0, on: false });
+
+  /* morphing nav underline — glides to whichever section is active */
+  useEffect(() => {
+    const wrap = navLinksRef.current;
+    if (!wrap) return;
+    const update = () => {
+      const el = wrap.querySelector<HTMLElement>(`[data-nav="${activeSection}"]`);
+      if (el) setNavInd({ left: el.offsetLeft, width: el.offsetWidth, on: true });
+      else setNavInd((prev) => ({ ...prev, on: false }));
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [activeSection]);
 
   useEffect(() => {
     const fn = () => {
@@ -337,6 +348,10 @@ export default function LandingPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // No form backend yet — compose a real email instead of pretending to send.
+    const subject = encodeURIComponent(`Printable enquiry — ${form.name}`);
+    const body = encodeURIComponent(`${form.msg}\n\n— ${form.name} (${form.email})`);
+    window.location.href = `mailto:darsh.dave999@gmail.com?subject=${subject}&body=${body}`;
     setSent(true);
   };
 
@@ -355,10 +370,11 @@ export default function LandingPage() {
             <img src="/printable-logo.jpeg" alt="Printable logo" className="logo-img" />
             Print<span>able</span>
           </button>
-          <div className="nav-links">
+          <div className="nav-links" ref={navLinksRef}>
             {NAV_ITEMS.map(({ id, label }) => (
               <button
                 key={id}
+                data-nav={id}
                 onClick={() => scrollTo(id)}
                 className={`nav-link ${activeSection === id ? "is-active" : ""}`}
               >
@@ -366,6 +382,11 @@ export default function LandingPage() {
               </button>
             ))}
             <a href="/vendor" className="nav-link nav-cta">For print shops →</a>
+            <span
+              className="nav-underline"
+              style={{ left: navInd.left, width: navInd.width, opacity: navInd.on ? 1 : 0 }}
+              aria-hidden
+            />
           </div>
           <button
             className="hamburger"
@@ -399,11 +420,6 @@ export default function LandingPage() {
 
         <div className="hero-layout">
           <div className="hero-copy">
-            <HeroEntrance delay={0}>
-              <span className="hero-badge">
-                <span className="hero-badge-dot" /> 🔒 Files auto-delete after printing
-              </span>
-            </HeroEntrance>
             <HeroEntrance delay={1}>
               <h1 className="hero-title">
                 Printing, finally{" "}
@@ -435,24 +451,14 @@ export default function LandingPage() {
             <HeroEntrance delay={4}>
               <div className="hero-trust">
                 <div className="trust-item">
-                  <span className="trust-icon">☁️</span> Straight to Encrypted Storage
+                  <span className="trust-icon"><Icon name="cloud" size={16} /></span> Straight to Encrypted Storage
                 </div>
                 <div className="trust-item">
-                  <span className="trust-icon">🙈</span> Printed by Software, Not People
+                  <span className="trust-icon"><Icon name="eyeoff" size={16} /></span> Printed by Software, Not People
                 </div>
                 <div className="trust-item">
-                  <span className="trust-icon">⏱️</span> Deleted the Moment It Prints
+                  <span className="trust-icon"><Icon name="timer" size={16} /></span> Deleted the Moment It Prints
                 </div>
-              </div>
-            </HeroEntrance>
-
-            <HeroEntrance delay={5}>
-              <div className="hero-traction">
-                <p>
-                  <span>Trusted by <strong>10,000+</strong> students</span>
-                  <span style={{ color: "var(--accent-2)" }}>•</span>
-                  <span><strong>500,000+</strong> pages printed automatically</span>
-                </p>
               </div>
             </HeroEntrance>
           </div>
@@ -513,7 +519,7 @@ export default function LandingPage() {
                 <GlowCard>
                   <Tilt max={7} className="prob-tilt">
                     <div className="prob-card">
-                      <span className="prob-icon">{p.icon}</span>
+                      <span className="prob-icon"><Icon name={p.icon} /></span>
                       <span className="prob-stat">{p.stat}</span>
                       <h3>{p.title}</h3>
                       <p>{p.desc}</p>
@@ -698,7 +704,9 @@ export default function LandingPage() {
               </ul>
             </div>
             <Reveal variant="scale" d={1}>
-              <TrackerDemo />
+              <Parallax speed={0.1}>
+                <TrackerDemo />
+              </Parallax>
             </Reveal>
           </div>
         </div>
@@ -765,7 +773,9 @@ export default function LandingPage() {
               </Reveal>
             </div>
             <Reveal variant="scale" d={2}>
-              <VendorConsole />
+              <Parallax speed={0.1}>
+                <VendorConsole />
+              </Parallax>
             </Reveal>
           </div>
 
@@ -827,14 +837,14 @@ export default function LandingPage() {
           />
           <div className="partner-steps">
             {[
-              { n: "01", icon: "💿", title: "Install the desktop app", desc: "One Windows installer. First run asks for your shop name and setup key — paste it, hit “Link shop & start”, done." },
-              { n: "02", icon: "🪧", title: "Place your QR on the counter", desc: "We give you a shop code and a standee. Customers scan it — or WhatsApp their files with your code." },
-              { n: "03", icon: "🍫", title: "Watch orders print themselves", desc: "Jobs arrive paid, configured, and queued. You hand over pages and collect the money. That's the whole job." },
+              { n: "01", icon: "download", title: "Install the desktop app", desc: "One Windows installer. First run asks for your shop name and setup key — paste it, hit “Link shop & start”, done." },
+              { n: "02", icon: "sign", title: "Place your QR on the counter", desc: "We give you a shop code and a standee. Customers scan it — or WhatsApp their files with your code." },
+              { n: "03", icon: "coffee", title: "Watch orders print themselves", desc: "Jobs arrive paid, configured, and queued. You hand over pages and collect the money. That's the whole job." },
             ].map((s, i) => (
               <Reveal key={s.n} d={i} variant="up">
                 <div className="partner-step">
                   <span className="partner-step-n">{s.n}</span>
-                  <span className="partner-step-icon">{s.icon}</span>
+                  <span className="partner-step-icon"><Icon name={s.icon} size={26} /></span>
                   <h3>{s.title}</h3>
                   <p>{s.desc}</p>
                 </div>
@@ -872,14 +882,14 @@ export default function LandingPage() {
 
           <div className="steps-grid">
             {[
-              { n: 1, icon: "📷", title: "Scan the QR Code", desc: "Every print shop has a unique QR code at the counter. Scan it with any smartphone camera — no app download, no account, no OTP." },
-              { n: 2, icon: "📄", title: "Upload & Configure", desc: "Drop files up to 500 MB — the page count is detected before the upload even finishes, and the live preview goes grayscale the moment you pick B&W." },
-              { n: 3, icon: "🖨️", title: "Pay & It Prints Itself", desc: "See the exact price, pay cash at pickup or online, and get your code — like ABC123. The shop's software prints the job automatically." },
+              { n: 1, icon: "camera", title: "Scan the QR Code", desc: "Every print shop has a unique QR code at the counter. Scan it with any smartphone camera — no app download, no account, no OTP." },
+              { n: 2, icon: "file", title: "Upload & Configure", desc: "Drop files up to 500 MB — the page count is detected before the upload even finishes, and the live preview goes grayscale the moment you pick B&W." },
+              { n: 3, icon: "printer", title: "Pay & It Prints Itself", desc: "See the exact price, pay cash at pickup or online, and get your code — like ABC123. The shop's software prints the job automatically." },
             ].map((s, i) => (
               <Reveal key={s.n} d={i} variant="up">
                 <div className="step-card">
                   <div className="step-num">{s.n}</div>
-                  <div className="step-icon">{s.icon}</div>
+                  <div className="step-icon"><Icon name={s.icon} size={26} /></div>
                   <h3 className="step-title">{s.title}</h3>
                   <p className="step-desc">{s.desc}</p>
                 </div>
@@ -974,7 +984,7 @@ export default function LandingPage() {
               <Reveal key={f.title} d={i % 4} variant="up">
                 <GlowCard>
                   <div className="feat-card">
-                    <span className="feat-icon">{f.icon}</span>
+                    <span className="feat-icon"><Icon name={f.icon} /></span>
                     <h3 className="feat-title">{f.title}</h3>
                     <p className="feat-desc">{f.desc}</p>
                   </div>
@@ -992,16 +1002,16 @@ export default function LandingPage() {
           </Reveal>
           <div className="tech-grid">
             {[
-              { icon: "🖥️", title: "Partner Desktop App", desc: "Native Electron app for Windows. Silent printing via SumatraPDF, Word/PowerPoint auto-conversion (LibreOffice fallback), true-grayscale B&W conversion via MuPDF in milliseconds, and a crash-safe queue that re-queues stuck jobs after a restart." },
-              { icon: "☁️", title: "Encrypted Cloud Storage", desc: "Web uploads go from the browser straight to Cloudflare R2 via presigned URLs — never through our API server — and are deleted the moment the order completes. A scheduled sweep clears abandoned uploads too." },
-              { icon: "💚", title: "WhatsApp Cloud API", desc: "Direct Meta integration — one central number, per-shop codes, HMAC-verified webhooks, multi-file bursts bundled within 10 seconds, and your shop remembered for next time." },
-              { icon: "⚡", title: "Real-time Order Pipeline", desc: "Orders reach the shop within 5 seconds. Single-worker queue with staged live progress, pause/resume, per-order printer overrides, and automatic colour/B&W splitting across two printers." },
-              { icon: "🏦", title: "Razorpay Payments", desc: "UPI, cards and wallets with HMAC-SHA256, timing-safe webhook verification — every payment confirmed server-side before a single page prints. One captured payment marks an entire split order paid." },
-              { icon: "🔄", title: "Auto-updating Fleet", desc: "A built-in auto-updater lets new versions download in the background and install on restart — no manual reinstalls at the counter." },
+              { icon: "monitor", title: "Partner Desktop App", desc: "Native Electron app for Windows. Silent printing via SumatraPDF, Word/PowerPoint auto-conversion (LibreOffice fallback), true-grayscale B&W conversion via MuPDF in milliseconds, and a crash-safe queue that re-queues stuck jobs after a restart." },
+              { icon: "cloud", title: "Encrypted Cloud Storage", desc: "Web uploads go from the browser straight to Cloudflare R2 via presigned URLs — never through our API server — and are deleted the moment the order completes. A scheduled sweep clears abandoned uploads too." },
+              { icon: "whatsapp", title: "WhatsApp Cloud API", desc: "Direct Meta integration — one central number, per-shop codes, HMAC-verified webhooks, multi-file bursts bundled within 10 seconds, and your shop remembered for next time." },
+              { icon: "zap", title: "Real-time Order Pipeline", desc: "Orders reach the shop within 5 seconds. Single-worker queue with staged live progress, pause/resume, per-order printer overrides, and automatic colour/B&W splitting across two printers." },
+              { icon: "landmark", title: "Razorpay Payments", desc: "UPI, cards and wallets with HMAC-SHA256, timing-safe webhook verification — every payment confirmed server-side before a single page prints. One captured payment marks an entire split order paid." },
+              { icon: "refresh", title: "Auto-updating Fleet", desc: "A built-in auto-updater lets new versions download in the background and install on restart — no manual reinstalls at the counter." },
             ].map((t, i) => (
               <Reveal key={t.title} d={i % 3} variant="up">
                 <div className="tech-card">
-                  <span className="tech-icon">{t.icon}</span>
+                  <span className="tech-icon"><Icon name={t.icon} /></span>
                   <div>
                     <h4>{t.title}</h4>
                     <p>{t.desc}</p>
@@ -1013,38 +1023,32 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CH.08 PRICING ── */}
+      {/* ── CH.08 PRICING — the shop's own rates, nothing added ── */}
       <section id="pricing" className="sec">
-        <div className="wrap">
+        <div className="wrap wrap--narrow">
           <Chapter
             no="08"
-            kicker="Transparent Pricing"
-            title={<>The price you see is <em>the price you pay.</em></>}
-            sub="Default rates below — every shop sets its own, and the backend recalculates independently so the display can't lie."
+            kicker="Pricing"
+            title={<>The shop&apos;s own price. <em>Nothing added.</em></>}
+            sub="Printable doesn't set print rates — your local shop does."
           />
-          <div className="price-grid">
-            {[
-              { icon: "🖤", amount: "₹1", unit: "/page", name: "Black & White", desc: "Crisp true-grayscale output — converted before it ever hits the printer." },
-              { icon: "🎨", amount: "₹5", unit: "/page", name: "Colour", desc: "Full colour on the shop's colour printer, routed automatically." },
-              { icon: "📦", amount: "-10%", unit: " & more", name: "Bulk, automatic", desc: "Past 100 total pages, rates drop automatically: ₹0.90 B&W, ₹4 colour. No coupons needed." },
-              { icon: "📄", amount: "50%", unit: " off", name: "Double-sided", desc: "Pick “Both sides” and the duplex discount applies to the live price instantly." },
-            ].map((p, i) => (
-              <Reveal key={p.name} d={i} variant="up">
-                <div className="price-card">
-                  <span className="price-icon">{p.icon}</span>
-                  <div className="price-amount">{p.amount}<small>{p.unit}</small></div>
-                  <div className="price-name">{p.name}</div>
-                  <p className="price-desc">{p.desc}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-          <Reveal variant="up" d={2}>
-            <p className="price-note">
-              Shops can also offer finishing — <strong>soft binding, spiral binding, lamination, stapling</strong> — at
-              their own rates. An itemised <strong>Price Breakdown</strong> (<em>12 pages × 2 copies × ₹1…</em>) shows
-              before you place any order.
-            </p>
+          <Reveal variant="up">
+            <div className="price-honest">
+              <p className="price-honest-line">
+                Whatever your shop charges at the counter is exactly what you pay here — B&amp;W, colour,
+                double-sided, binding, everything at the shop&apos;s own rates.
+              </p>
+              <p className="price-honest-sub">
+                The only difference: you see an itemised <strong>live price before you pay</strong>
+                {" "}(<em>12 pages × 2 copies × shop rate…</em>), recalculated independently by the backend —
+                so the number on screen can&apos;t lie. No platform markup, no hidden fees, no surprises.
+              </p>
+              <div className="price-honest-points">
+                <span><Icon name="check" size={15} strokeWidth={2.6} /> Shop&apos;s counter rate, unchanged</span>
+                <span><Icon name="check" size={15} strokeWidth={2.6} /> Itemised breakdown before payment</span>
+                <span><Icon name="check" size={15} strokeWidth={2.6} /> Zero platform markup</span>
+              </div>
+            </div>
           </Reveal>
         </div>
       </section>
@@ -1061,16 +1065,16 @@ export default function LandingPage() {
           <div className="priv-rail">
             <div className="priv-flow" aria-hidden />
             {[
-              { step: "01", icon: "📱", title: "You upload", desc: "Web uploads go from your phone straight to encrypted cloud storage — never through our API server." },
-              { step: "02", icon: "☁️", title: "It waits, encrypted", desc: "Behind a long, unguessable link that tracking pages never receive. The shop's app signs in with its own secret key." },
-              { step: "03", icon: "🖨️", title: "Software prints it", desc: "The vendor app fetches, converts, and silent-prints. No human opens your file." },
-              { step: "04", icon: "🧹", title: "Local copy wiped", desc: "The temp file on the shop PC is deleted right after the pages come out." },
-              { step: "05", icon: "💨", title: "Cloud copy purged", desc: "Deleted the moment your order completes — and a scheduled sweep clears abandoned uploads within hours." },
+              { step: "01", icon: "smartphone", title: "You upload", desc: "Web uploads go from your phone straight to encrypted cloud storage — never through our API server." },
+              { step: "02", icon: "cloud", title: "It waits, encrypted", desc: "Behind a long, unguessable link that tracking pages never receive. The shop's app signs in with its own secret key." },
+              { step: "03", icon: "printer", title: "Software prints it", desc: "The vendor app fetches, converts, and silent-prints. No human opens your file." },
+              { step: "04", icon: "eraser", title: "Local copy wiped", desc: "The temp file on the shop PC is deleted right after the pages come out." },
+              { step: "05", icon: "wind", title: "Cloud copy purged", desc: "Deleted the moment your order completes — and a scheduled sweep clears abandoned uploads within hours." },
             ].map((n, i) => (
               <Reveal key={n.step} d={i} variant="up">
                 <div className="priv-node">
                   <span className="priv-node-step">{n.step}</span>
-                  <span className="priv-node-icon">{n.icon}</span>
+                  <span className="priv-node-icon"><Icon name={n.icon} /></span>
                   <h4>{n.title}</h4>
                   <p>{n.desc}</p>
                 </div>
@@ -1175,7 +1179,7 @@ export default function LandingPage() {
                     aria-controls={`faq-a-${i}`}
                   >
                     <span>{f.q}</span>
-                    <span className="faq-chevron">{faqOpen === i ? "−" : "+"}</span>
+                    <span className="faq-chevron"><Icon name="chevron" size={16} strokeWidth={2.4} /></span>
                   </button>
                   <div className="faq-a" id={`faq-a-${i}`} aria-hidden={faqOpen !== i}>
                     <p>{f.a}</p>
@@ -1198,10 +1202,10 @@ export default function LandingPage() {
           />
           <Reveal variant="up" d={2}>
             <p className="about-intro">
-              We are <strong>Cynogen</strong> — a team of <strong>eight passionate engineers</strong> who got tired of
-              wasting time at the campus print shop, and worried about handing personal documents to a stranger&apos;s
-              computer. <strong>Printable</strong> is our first product: a mission to make printing effortless, instant,
-              and truly private for colleges, offices, and beyond.
+              We are <strong>Cynogen</strong> — engineers who got tired of wasting
+              time at the campus print shop, and worried about handing personal documents to a
+              stranger&apos;s computer. <strong>Printable</strong> is our first product: a mission to make printing
+              effortless, instant, and truly private for colleges, offices, and beyond.
             </p>
           </Reveal>
           <div className="team-grid">
@@ -1262,8 +1266,8 @@ export default function LandingPage() {
           </Reveal>
           <Reveal variant="up" d={3}>
             <div className="cta-stats">
-              <span><strong><Counter to={10} suffix="K+" /></strong> students served</span>
-              <span><strong><Counter to={500} suffix="K+" /></strong> pages printed</span>
+              <span><strong><Counter to={20} suffix="s" /></strong> to place an order</span>
+              <span><strong><Counter to={5} suffix="s" /></strong> for it to reach the shop</span>
               <span><strong><Counter to={20} suffix="s" /></strong> to place an order</span>
             </div>
           </Reveal>
@@ -1295,8 +1299,8 @@ export default function LandingPage() {
               {sent ? (
                 <div className="form-success">
                   <div className="form-success-icon">✅</div>
-                  <h3>Message Sent!</h3>
-                  <p>We&apos;ll get back to you within 24 hours.</p>
+                  <h3>Almost there!</h3>
+                  <p>Your email app has opened with the message ready — hit send and we&apos;ll reply within 24 hours.</p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="form">
